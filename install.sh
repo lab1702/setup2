@@ -147,10 +147,11 @@ main() {
     # Ubuntu's default ~/.profile adds ~/.local/bin, but only if it exists at
     # login, so create it now. Older versions of this script also exported it;
     # drop that line when something else in ~/.profile already adds the
-    # directory, and add it only if nothing does.
+    # directory, and add it only if nothing does. Match only PATH assignments,
+    # not other lines that mention the directory (like Ubuntu's -d test).
     mkdir -p "$HOME/.local/bin"
     local LOCAL_BIN_LINE='export PATH="$HOME/.local/bin:$PATH"'
-    local LOCAL_BIN_PATTERN='(HOME\}?|~|/home/[^/]+)/\.local/bin'
+    local LOCAL_BIN_PATTERN='(^|[[:space:];])PATH\+?=.*(HOME\}?|~|/home/[^/]+)/\.local/bin'
     if (( $(count_matches "$HOME/.profile" "$LOCAL_BIN_PATTERN") > 1 )); then
         remove_line "$HOME/.profile" "$LOCAL_BIN_LINE"
     fi
