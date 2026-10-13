@@ -31,21 +31,24 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 - Enables amd64v3-optimized packages on amd64 if the CPU supports x86-64-v3.
 - Runs `apt-get update` and `apt-get full-upgrade` before installing.
 - Sets the npm global prefix to `~/.npm-global`.
-- Adds these lines to `~/.profile` if they are not already there:
+- Adds these lines to `~/.profile` unless that setting is already there (commented-out lines don't count):
 
   ```bash
   export PIP_REQUIRE_VIRTUALENV=1
   export PATH="$HOME/.npm-global/bin:$PATH"
   export PATH="$HOME/go/bin:$PATH"
-  export PATH="$HOME/.cargo/bin:$PATH"
+  export PATH="$HOME/.cargo/bin:$PATH"   # skipped if ~/.profile already sources ~/.cargo/env
+  export PATH="$HOME/.local/bin:$PATH"   # skipped if ~/.profile already adds ~/.local/bin (Ubuntu's default does)
   ```
 
+- Creates `~/.local/bin` so Ubuntu's default `~/.profile` puts it on your PATH.
 - Adds `eval "$(starship init bash)"` to `~/.bashrc` to turn on the starship prompt, unless `~/.bashrc` already initializes starship.
+- Warns you if a `~/.bash_profile` or `~/.bash_login` would stop login shells from reading `~/.profile`.
 
 - Adds you to the `docker` group so you can run docker without `sudo`.
 - Tells you at the end whether a reboot is needed.
 
-The script is safe to run again: it skips `~/.profile` and `~/.bashrc` lines that already exist and updates DuckDB to the latest release.
+The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add, removes the `~/.local/bin` line that older versions added when Ubuntu's default already covers it, and updates DuckDB to the latest release.
 
 ## Notes
 

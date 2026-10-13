@@ -80,33 +80,68 @@ main() {
     # Install global npm packages under the user's home instead of system dirs
     npm config set prefix "$HOME/.npm-global"
 
-    # Append lines to a file unless each is already present
-    add_lines() {
-        local file="$1" line
-        shift
+    # Print a file's non-comment lines with surrounding whitespace trimmed
+    config_lines() {
+        sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^#/d' "$1"
+    }
+
+    # Append a line to a file unless it is already there (ignoring comments
+    # and surrounding whitespace) or a non-comment line matches the optional
+    # extended regex, which catches the same setting written another way
+    add_line() {
+        local file="$1" line="$2" pattern="${3:-}" content
         touch "$file"
-        # Make sure the file ends with a newline so appended lines stay separate
+        # Read into a variable: grep -q in a pipeline can SIGPIPE sed and,
+        # with pipefail, turn a match into a failure
+        content="$(config_lines "$file")"
+        if grep -qxF -- "$line" <<< "$content"; then
+            return 0
+        fi
+        if [[ -n "$pattern" ]] && grep -qE -- "$pattern" <<< "$content"; then
+            return 0
+        fi
+        # Make sure the file ends with a newline so the new line stays separate
         if [[ -s "$file" && -n "$(tail -c 1 "$file")" ]]; then
             echo >> "$file"
         fi
-        for line in "$@"; do
-            grep -qxF "$line" "$file" || echo "$line" >> "$file"
-        done
+        printf '%s\n' "$line" >> "$file"
+    }
+
+    # Remove every line that exactly matches, rewriting the file in place
+    remove_line() {
+        local file="$1" line="$2" kept
+        grep -qxF -- "$line" "$file" 2> /dev/null || return 0
+        kept="$(grep -vxF -- "$line" "$file" || true)"
+        if [[ -n "$kept" ]]; then
+            printf '%s\n' "$kept" > "$file"
+        else
+            : > "$file"
+        fi
     }
 
     # Environment settings go in ~/.profile so login and non-interactive
     # shells get them too (Ubuntu's .bashrc returns early for those)
-    add_lines "$HOME/.profile" \
-        'export PIP_REQUIRE_VIRTUALENV=1' \
-        'export PATH="$HOME/.npm-global/bin:$PATH"' \
-        'export PATH="$HOME/go/bin:$PATH"' \
-        'export PATH="$HOME/.cargo/bin:$PATH"'
+    add_line "$HOME/.profile" 'export PIP_REQUIRE_VIRTUALENV=1' \
+        'PIP_REQUIRE_VIRTUALENV='
+    add_line "$HOME/.profile" 'export PATH="$HOME/.npm-global/bin:$PATH"' \
+        '\.npm-global/bin'
+    add_line "$HOME/.profile" 'export PATH="$HOME/go/bin:$PATH"' \
+        'HOME/go/bin'
+    # rustup's own installer sources ~/.cargo/env instead
+    add_line "$HOME/.profile" 'export PATH="$HOME/.cargo/bin:$PATH"' \
+        '\.cargo/(bin|env)'
 
-    # Interactive prompt setup goes in ~/.bashrc, unless starship is already
-    # initialized there in some other form
-    if ! grep -qs 'starship init bash' "$HOME/.bashrc"; then
-        add_lines "$HOME/.bashrc" 'eval "$(starship init bash)"'
-    fi
+    # Ubuntu's default ~/.profile adds ~/.local/bin, but only if it exists at
+    # login, so create it now. Older versions of this script also exported it;
+    # drop that line and add it back only if nothing else in ~/.profile does.
+    mkdir -p "$HOME/.local/bin"
+    LOCAL_BIN_LINE='export PATH="$HOME/.local/bin:$PATH"'
+    remove_line "$HOME/.profile" "$LOCAL_BIN_LINE"
+    add_line "$HOME/.profile" "$LOCAL_BIN_LINE" 'HOME/\.local/bin'
+
+    # Interactive prompt setup goes in ~/.bashrc
+    add_line "$HOME/.bashrc" 'eval "$(starship init bash)"' \
+        'starship init bash'
 
     # Install the latest DuckDB CLI release into ~/bin
     DUCKDB_ARCH="$(dpkg --print-architecture)"
@@ -123,6 +158,17 @@ main() {
     USER_NAME="$(id -un)"
     sudo usermod -aG docker "$USER_NAME"
     echo "Added $USER_NAME to the docker group. Log out and back in for it to take effect."
+
+    # bash login shells read only the first of these that exists
+    for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
+        if [[ -f "$LOGIN_FILE" ]]; then
+            if ! grep -qs '\.profile' "$LOGIN_FILE"; then
+                echo "Warning: $LOGIN_FILE exists and does not source ~/.profile," \
+                    "so login shells will miss the PATH changes above." >&2
+            fi
+            break
+        fi
+    done
 
     echo "Done."
 
