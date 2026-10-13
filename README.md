@@ -7,7 +7,7 @@ A bash script that sets up an Ubuntu machine for data science and software devel
 Run as your normal user (not with `sudo`). The script calls `sudo` itself when needed.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bash
 ```
 
 ## What it installs
