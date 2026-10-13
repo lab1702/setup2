@@ -47,7 +47,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 - Adds you to the `docker` group so you can run docker without `sudo`.
 - Tells you at the end whether a reboot is needed.
 
-The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add or remove, removes the `~/.local/bin` line from `~/.profile` that older versions added when Ubuntu's default already covers it, moves the settings that the earliest versions put in `~/.bashrc` to `~/.profile` (removing the old `~/.bashrc` lines), and updates DuckDB to the latest release (removing the old copy in `~/bin` that earlier versions installed).
+The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add or remove, removes the `~/.local/bin` line from `~/.profile` that older versions added when Ubuntu's default already covers it, moves the settings that the earliest versions put in `~/.bashrc` to `~/.profile` (removing the old `~/.bashrc` lines, unless login shells skip `~/.profile`), and updates DuckDB to the latest release (removing the old copy in `~/bin` that earlier versions installed).
 
 ## Notes
 

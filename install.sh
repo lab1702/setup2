@@ -159,18 +159,35 @@ main() {
     fi
     add_line "$HOME/.profile" "$LOCAL_BIN_LINE" "$LOCAL_BIN_PATTERN"
 
+    # bash login shells read only the first of these that exists, so if it
+    # doesn't source ~/.profile, the settings above never reach them
+    local LOGIN_FILE PROFILE_IS_READ=1
+    for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
+        if [[ -f "$LOGIN_FILE" ]]; then
+            if (( $(count_matches "$LOGIN_FILE" '\.profile') == 0 )); then
+                PROFILE_IS_READ=0
+                echo "Warning: $LOGIN_FILE exists and does not source ~/.profile," \
+                    "so login shells will miss the settings added to ~/.profile." >&2
+            fi
+            break
+        fi
+    done
+
     # Older versions of this script put these settings in ~/.bashrc instead.
     # Now that ~/.profile covers them, drop those exact lines so interactive
-    # shells don't add each directory to PATH twice.
-    local OLD_BASHRC_LINE
-    for OLD_BASHRC_LINE in \
-        'export PIP_REQUIRE_VIRTUALENV=1' \
-        'export PATH="$HOME/.npm-global/bin:$PATH"' \
-        'export PATH="$HOME/go/bin:$PATH"' \
-        'export PATH="$HOME/.cargo/bin:$PATH"' \
-        "$LOCAL_BIN_LINE"; do
-        remove_line "$HOME/.bashrc" "$OLD_BASHRC_LINE"
-    done
+    # shells don't add each directory to PATH twice. Keep them when login
+    # shells skip ~/.profile, because ~/.bashrc is then the only place they work.
+    if (( PROFILE_IS_READ )); then
+        local OLD_BASHRC_LINE
+        for OLD_BASHRC_LINE in \
+            'export PIP_REQUIRE_VIRTUALENV=1' \
+            'export PATH="$HOME/.npm-global/bin:$PATH"' \
+            'export PATH="$HOME/go/bin:$PATH"' \
+            'export PATH="$HOME/.cargo/bin:$PATH"' \
+            "$LOCAL_BIN_LINE"; do
+            remove_line "$HOME/.bashrc" "$OLD_BASHRC_LINE"
+        done
+    fi
 
     # Interactive prompt setup goes in ~/.bashrc
     add_line "$HOME/.bashrc" 'eval "$(starship init bash)"' \
@@ -195,18 +212,6 @@ main() {
     USER_NAME="$(id -un)"
     sudo usermod -aG docker "$USER_NAME"
     echo "Added $USER_NAME to the docker group. Log out and back in for it to take effect."
-
-    # bash login shells read only the first of these that exists
-    local LOGIN_FILE
-    for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
-        if [[ -f "$LOGIN_FILE" ]]; then
-            if (( $(count_matches "$LOGIN_FILE" '\.profile') == 0 )); then
-                echo "Warning: $LOGIN_FILE exists and does not source ~/.profile," \
-                    "so login shells will miss the PATH changes above." >&2
-            fi
-            break
-        fi
-    done
 
     echo "Done."
 
