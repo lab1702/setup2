@@ -138,8 +138,9 @@ main() {
         'PIP_REQUIRE_VIRTUALENV='
     add_line "$HOME/.profile" 'export PATH="$HOME/.npm-global/bin:$PATH"' \
         '\.npm-global/bin'
+    # Match only PATH assignments: a GOBIN or GOPATH line doesn't add it
     add_line "$HOME/.profile" 'export PATH="$HOME/go/bin:$PATH"' \
-        '(HOME\}?|~|/home/[^/]+)/go/bin|go env GOPATH'
+        '(^|[[:space:];])PATH\+?=.*((HOME\}?|~|/home/[^/]+)/go/bin|go env GOPATH)'
     # rustup's own installer sources ~/.cargo/env instead
     add_line "$HOME/.profile" 'export PATH="$HOME/.cargo/bin:$PATH"' \
         '\.cargo/(bin|env)'
