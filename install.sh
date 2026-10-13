@@ -2,10 +2,12 @@
 # Install Ubuntu packages for data science and software development.
 set -euo pipefail
 
-# Run apt-get without prompts, keeping existing config files on upgrade.
+# Run apt-get without prompts, keeping existing config files on upgrade and
+# waiting for the dpkg lock (unattended-upgrades often holds it after boot).
 # Input comes from /dev/null so nothing can read the script when piped to bash.
 apt_get() {
     sudo env DEBIAN_FRONTEND=noninteractive apt-get -y \
+        -o DPkg::Lock::Timeout=600 \
         -o Dpkg::Options::=--force-confdef \
         -o Dpkg::Options::=--force-confold \
         "$@" < /dev/null
@@ -21,7 +23,7 @@ main() {
         exit 1
     fi
 
-    PACKAGES=(
+    local PACKAGES=(
         # Build tools and C/C++/Fortran
         build-essential gcc g++ gfortran cmake
 
@@ -56,8 +58,9 @@ main() {
         openssh-server btop nvtop vim
     )
 
-    # Use amd64v3-optimized packages if the CPU supports x86-64-v3
-    AMD64V3_CONF=/etc/apt/apt.conf.d/99enable-amd64v3
+    # Use amd64v3-optimized packages if the CPU supports x86-64-v3, and stop
+    # using them if it doesn't (e.g. the disk moved to an older machine)
+    local AMD64V3_CONF=/etc/apt/apt.conf.d/99enable-amd64v3 LD_SO_HELP
     LD_SO_HELP="$(/lib64/ld-linux-x86-64.so.2 --help 2>/dev/null || true)"
     if [[ "$(dpkg --print-architecture)" == "amd64" ]]; then
         if [[ "$LD_SO_HELP" == *"x86-64-v3 (supported"* ]]; then
@@ -66,6 +69,9 @@ main() {
             fi
             echo "CPU supports x86-64-v3: using amd64v3 packages."
         else
+            if [[ -f "$AMD64V3_CONF" ]]; then
+                sudo rm -f "$AMD64V3_CONF"
+            fi
             echo "CPU does not support x86-64-v3: using baseline amd64 packages."
         fi
     fi
@@ -107,6 +113,13 @@ main() {
         printf '%s\n' "$line" >> "$file"
     }
 
+    # Count the non-comment lines of a file that match an extended regex
+    count_matches() {
+        local content
+        content="$(config_lines "$1")"
+        grep -cE -- "$2" <<< "$content" || true
+    }
+
     # Remove every line that exactly matches, rewriting the file in place
     remove_line() {
         local file="$1" line="$2" kept
@@ -126,43 +139,52 @@ main() {
     add_line "$HOME/.profile" 'export PATH="$HOME/.npm-global/bin:$PATH"' \
         '\.npm-global/bin'
     add_line "$HOME/.profile" 'export PATH="$HOME/go/bin:$PATH"' \
-        'HOME/go/bin'
+        '(HOME\}?|~|/home/[^/]+)/go/bin|go env GOPATH'
     # rustup's own installer sources ~/.cargo/env instead
     add_line "$HOME/.profile" 'export PATH="$HOME/.cargo/bin:$PATH"' \
         '\.cargo/(bin|env)'
 
     # Ubuntu's default ~/.profile adds ~/.local/bin, but only if it exists at
     # login, so create it now. Older versions of this script also exported it;
-    # drop that line and add it back only if nothing else in ~/.profile does.
+    # drop that line when something else in ~/.profile already adds the
+    # directory, and add it only if nothing does.
     mkdir -p "$HOME/.local/bin"
-    LOCAL_BIN_LINE='export PATH="$HOME/.local/bin:$PATH"'
-    remove_line "$HOME/.profile" "$LOCAL_BIN_LINE"
-    add_line "$HOME/.profile" "$LOCAL_BIN_LINE" 'HOME/\.local/bin'
+    local LOCAL_BIN_LINE='export PATH="$HOME/.local/bin:$PATH"'
+    local LOCAL_BIN_PATTERN='(HOME\}?|~|/home/[^/]+)/\.local/bin'
+    if (( $(count_matches "$HOME/.profile" "$LOCAL_BIN_PATTERN") > 1 )); then
+        remove_line "$HOME/.profile" "$LOCAL_BIN_LINE"
+    fi
+    add_line "$HOME/.profile" "$LOCAL_BIN_LINE" "$LOCAL_BIN_PATTERN"
 
     # Interactive prompt setup goes in ~/.bashrc
     add_line "$HOME/.bashrc" 'eval "$(starship init bash)"' \
         'starship init bash'
 
-    # Install the latest DuckDB CLI release into ~/bin
+    # Install the latest DuckDB CLI release into ~/.local/bin
+    local DUCKDB_ARCH
     DUCKDB_ARCH="$(dpkg --print-architecture)"
+    # Global, not local: the EXIT trap runs after main returns
     DUCKDB_TMP="$(mktemp -d)"
     trap 'rm -rf "$DUCKDB_TMP"' EXIT
-    mkdir -p "$HOME/bin"
     curl -fsSL -o "$DUCKDB_TMP/duckdb.gz" \
         "https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${DUCKDB_ARCH}.gz"
     gunzip "$DUCKDB_TMP/duckdb.gz"
-    install -m 755 "$DUCKDB_TMP/duckdb" "$HOME/bin/duckdb"
-    echo "Installed $("$HOME/bin/duckdb" --version) to $HOME/bin/duckdb"
+    install -m 755 "$DUCKDB_TMP/duckdb" "$HOME/.local/bin/duckdb"
+    echo "Installed $("$HOME/.local/bin/duckdb" --version) to $HOME/.local/bin/duckdb"
+    # Older versions of this script installed it into ~/bin
+    rm -f "$HOME/bin/duckdb"
 
     # Let the invoking user run docker without sudo (takes effect after re-login)
+    local USER_NAME
     USER_NAME="$(id -un)"
     sudo usermod -aG docker "$USER_NAME"
     echo "Added $USER_NAME to the docker group. Log out and back in for it to take effect."
 
     # bash login shells read only the first of these that exists
+    local LOGIN_FILE
     for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
         if [[ -f "$LOGIN_FILE" ]]; then
-            if ! grep -qs '\.profile' "$LOGIN_FILE"; then
+            if (( $(count_matches "$LOGIN_FILE" '\.profile') == 0 )); then
                 echo "Warning: $LOGIN_FILE exists and does not source ~/.profile," \
                     "so login shells will miss the PATH changes above." >&2
             fi
