@@ -85,6 +85,10 @@ main() {
         local file="$1" line
         shift
         touch "$file"
+        # Make sure the file ends with a newline so appended lines stay separate
+        if [[ -s "$file" && -n "$(tail -c 1 "$file")" ]]; then
+            echo >> "$file"
+        fi
         for line in "$@"; do
             grep -qxF "$line" "$file" || echo "$line" >> "$file"
         done
@@ -96,12 +100,13 @@ main() {
         'export PIP_REQUIRE_VIRTUALENV=1' \
         'export PATH="$HOME/.npm-global/bin:$PATH"' \
         'export PATH="$HOME/go/bin:$PATH"' \
-        'export PATH="$HOME/.cargo/bin:$PATH"' \
-        'export PATH="$HOME/.local/bin:$PATH"'
+        'export PATH="$HOME/.cargo/bin:$PATH"'
 
-    # Interactive prompt setup goes in ~/.bashrc
-    add_lines "$HOME/.bashrc" \
-        'eval "$(starship init bash)"'
+    # Interactive prompt setup goes in ~/.bashrc, unless starship is already
+    # initialized there in some other form
+    if ! grep -qs 'starship init bash' "$HOME/.bashrc"; then
+        add_lines "$HOME/.bashrc" 'eval "$(starship init bash)"'
+    fi
 
     # Install the latest DuckDB CLI release into ~/bin
     DUCKDB_ARCH="$(dpkg --print-architecture)"

@@ -38,10 +38,9 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
   export PATH="$HOME/.npm-global/bin:$PATH"
   export PATH="$HOME/go/bin:$PATH"
   export PATH="$HOME/.cargo/bin:$PATH"
-  export PATH="$HOME/.local/bin:$PATH"
   ```
 
-- Adds `eval "$(starship init bash)"` to `~/.bashrc` to turn on the starship prompt.
+- Adds `eval "$(starship init bash)"` to `~/.bashrc` to turn on the starship prompt, unless `~/.bashrc` already initializes starship.
 
 - Adds you to the `docker` group so you can run docker without `sudo`.
 - Tells you at the end whether a reboot is needed.
