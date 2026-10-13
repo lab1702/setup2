@@ -10,13 +10,6 @@ Run as your normal user (not with `sudo`). The script calls `sudo` itself when n
 curl -fsSL https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bash
 ```
 
-Or download and review it first:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/lab1702/setup2/main/install.sh -o install.sh
-bash install.sh
-```
-
 ## What it installs
 
 | Section | Packages |
