@@ -160,11 +160,13 @@ main() {
     add_line "$HOME/.profile" "$LOCAL_BIN_LINE" "$LOCAL_BIN_PATTERN"
 
     # bash login shells read only the first of these that exists, so if it
-    # doesn't source ~/.profile, the settings above never reach them
+    # doesn't source ~/.profile (or link to it), the settings above never
+    # reach them
     local LOGIN_FILE PROFILE_IS_READ=1
     for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
         if [[ -f "$LOGIN_FILE" ]]; then
-            if (( $(count_matches "$LOGIN_FILE" '\.profile') == 0 )); then
+            if [[ ! "$LOGIN_FILE" -ef "$HOME/.profile" ]] &&
+                (( $(count_matches "$LOGIN_FILE" '\.profile') == 0 )); then
                 PROFILE_IS_READ=0
                 echo "Warning: $LOGIN_FILE exists and does not source ~/.profile," \
                     "so login shells will miss the settings added to ~/.profile." >&2
@@ -178,7 +180,8 @@ main() {
     # shells don't add each directory to PATH twice. Keep them when login
     # shells skip ~/.profile, because ~/.bashrc is then the only place they work.
     if (( PROFILE_IS_READ )); then
-        local OLD_BASHRC_LINE
+        local OLD_BASHRC_LINE BASHRC_BEFORE
+        BASHRC_BEFORE="$(cat "$HOME/.bashrc" 2> /dev/null || true)"
         for OLD_BASHRC_LINE in \
             'export PIP_REQUIRE_VIRTUALENV=1' \
             'export PATH="$HOME/.npm-global/bin:$PATH"' \
@@ -187,6 +190,11 @@ main() {
             "$LOCAL_BIN_LINE"; do
             remove_line "$HOME/.bashrc" "$OLD_BASHRC_LINE"
         done
+        # Until the user logs in again, new terminals only see ~/.bashrc
+        if [[ "$(cat "$HOME/.bashrc" 2> /dev/null || true)" != "$BASHRC_BEFORE" ]]; then
+            echo "Moved settings from ~/.bashrc to ~/.profile." \
+                "Log out and back in for new terminals to pick them up."
+        fi
     fi
 
     # Interactive prompt setup goes in ~/.bashrc
