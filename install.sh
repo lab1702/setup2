@@ -96,7 +96,8 @@ main() {
     # extended regex, which catches the same setting written another way
     add_line() {
         local file="$1" line="$2" pattern="${3:-}" content
-        touch "$file"
+        # Only create a missing file: don't bump the mtime of one we may not change
+        [[ -e "$file" ]] || touch "$file"
         # Read into a variable: grep -q in a pipeline can SIGPIPE sed and,
         # with pipefail, turn a match into a failure
         content="$(config_lines "$file")"
@@ -157,6 +158,19 @@ main() {
         remove_line "$HOME/.profile" "$LOCAL_BIN_LINE"
     fi
     add_line "$HOME/.profile" "$LOCAL_BIN_LINE" "$LOCAL_BIN_PATTERN"
+
+    # Older versions of this script put these settings in ~/.bashrc instead.
+    # Now that ~/.profile covers them, drop those exact lines so interactive
+    # shells don't add each directory to PATH twice.
+    local OLD_BASHRC_LINE
+    for OLD_BASHRC_LINE in \
+        'export PIP_REQUIRE_VIRTUALENV=1' \
+        'export PATH="$HOME/.npm-global/bin:$PATH"' \
+        'export PATH="$HOME/go/bin:$PATH"' \
+        'export PATH="$HOME/.cargo/bin:$PATH"' \
+        "$LOCAL_BIN_LINE"; do
+        remove_line "$HOME/.bashrc" "$OLD_BASHRC_LINE"
+    done
 
     # Interactive prompt setup goes in ~/.bashrc
     add_line "$HOME/.bashrc" 'eval "$(starship init bash)"' \
