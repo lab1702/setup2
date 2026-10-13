@@ -121,11 +121,13 @@ main() {
         grep -cE -- "$2" <<< "$content" || true
     }
 
-    # Remove every line that exactly matches, rewriting the file in place
+    # Remove every line that exactly matches, rewriting the file in place.
+    # -a keeps grep printing lines when the file has bytes it considers
+    # binary (a NUL or non-UTF-8 text); otherwise those lines would be lost.
     remove_line() {
         local file="$1" line="$2" kept
-        grep -qxF -- "$line" "$file" 2> /dev/null || return 0
-        kept="$(grep -vxF -- "$line" "$file" || true)"
+        grep -aqxF -- "$line" "$file" 2> /dev/null || return 0
+        kept="$(grep -avxF -- "$line" "$file" || true)"
         if [[ -n "$kept" ]]; then
             printf '%s\n' "$kept" > "$file"
         else
