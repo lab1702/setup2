@@ -43,7 +43,7 @@ main() {
         git gh
 
         # General shell tools
-        wget curl gpg unzip ripgrep fd-find fzf tree dos2unix
+        wget curl gpg unzip ripgrep fd-find fzf tree dos2unix starship
 
         # Web dev
         nodejs npm
