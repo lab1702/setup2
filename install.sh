@@ -43,7 +43,7 @@ main() {
         git gh
 
         # General shell tools
-        wget curl gpg unzip ripgrep fd-find fzf tree dos2unix vim
+        wget curl gpg unzip ripgrep fd-find fzf tree dos2unix
 
         # Web dev
         nodejs npm
@@ -52,7 +52,7 @@ main() {
         sqlite3 sqlite3-tools jq
 
         # System
-        openssh-server btop nvtop
+        openssh-server btop nvtop vim
     )
 
     # Use amd64v3-optimized packages if the CPU supports x86-64-v3

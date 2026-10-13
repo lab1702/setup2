@@ -21,10 +21,10 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | Rust | rustup (plus the stable toolchain) |
 | Containers | docker.io, docker-buildx, docker-compose-v2 |
 | GitHub | git, gh |
-| General shell tools | wget, curl, gpg, unzip, ripgrep, fd-find, fzf, tree, dos2unix, vim |
+| General shell tools | wget, curl, gpg, unzip, ripgrep, fd-find, fzf, tree, dos2unix |
 | Web dev | nodejs, npm |
 | Data | sqlite3, sqlite3-tools, jq, DuckDB CLI (latest release, in `~/bin`) |
-| System | openssh-server, btop, nvtop |
+| System | openssh-server, btop, nvtop, vim |
 
 ## What else it does
 
