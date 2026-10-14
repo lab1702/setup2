@@ -124,13 +124,15 @@ main() {
     # Remove every line that exactly matches, rewriting the file in place.
     # -a keeps grep printing lines when the file has bytes it considers
     # binary (a NUL or non-UTF-8 text); otherwise those lines would be lost.
-    # Leave the file alone if the result would not parse, e.g. when the line
-    # was the only command inside an if block.
+    # Leave the file alone if removing the line would stop it parsing, e.g.
+    # when the line was the only command inside an if block. Only compare
+    # against the original: bash -n can reject files that source fine (say,
+    # ones that enable extglob), and those must not block the removal.
     remove_line() {
         local file="$1" line="$2" kept
         grep -aqxF -- "$line" "$file" 2> /dev/null || return 0
         kept="$(grep -avxF -- "$line" "$file" || true)"
-        if ! bash -n <<< "$kept" 2> /dev/null; then
+        if bash -n "$file" 2> /dev/null && ! bash -n <<< "$kept" 2> /dev/null; then
             echo "Warning: not removing '$line' from $file because the rest" \
                 "of the file would not parse without it." >&2
             return 0
@@ -187,8 +189,9 @@ main() {
     # Older versions of this script put these settings in ~/.bashrc instead.
     # Now that ~/.profile covers them, drop those exact lines so interactive
     # shells don't add each directory to PATH twice. Keep them when login
-    # shells skip ~/.profile, because ~/.bashrc is then the only place they work.
-    if (( PROFILE_IS_READ )); then
+    # shells skip ~/.profile, because ~/.bashrc is then the only place they
+    # work, and when ~/.bashrc is the same file as ~/.profile.
+    if (( PROFILE_IS_READ )) && [[ ! "$HOME/.bashrc" -ef "$HOME/.profile" ]]; then
         local OLD_BASHRC_LINE BASHRC_BEFORE
         BASHRC_BEFORE="$(cat "$HOME/.bashrc" 2> /dev/null || true)"
         for OLD_BASHRC_LINE in \
