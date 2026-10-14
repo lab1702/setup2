@@ -58,7 +58,7 @@ main() {
         fonts-jetbrains-mono fonts-jetbrains-mono-web
 
         # System
-        openssh-server btop nvtop vim
+        openssh-server btop nvtop vim hx
     )
 
     # Use amd64v3-optimized packages if the CPU supports x86-64-v3, and stop

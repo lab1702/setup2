@@ -25,7 +25,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | Web dev | nodejs, npm |
 | Data | sqlite3, sqlite3-tools, jq, DuckDB CLI (latest release, in `~/.local/bin`) |
 | Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web |
-| System | openssh-server, btop, nvtop, vim |
+| System | openssh-server, btop, nvtop, vim, hx (Helix editor) |
 
 ## What else it does
 
