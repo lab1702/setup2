@@ -124,10 +124,17 @@ main() {
     # Remove every line that exactly matches, rewriting the file in place.
     # -a keeps grep printing lines when the file has bytes it considers
     # binary (a NUL or non-UTF-8 text); otherwise those lines would be lost.
+    # Leave the file alone if the result would not parse, e.g. when the line
+    # was the only command inside an if block.
     remove_line() {
         local file="$1" line="$2" kept
         grep -aqxF -- "$line" "$file" 2> /dev/null || return 0
         kept="$(grep -avxF -- "$line" "$file" || true)"
+        if ! bash -n <<< "$kept" 2> /dev/null; then
+            echo "Warning: not removing '$line' from $file because the rest" \
+                "of the file would not parse without it." >&2
+            return 0
+        fi
         if [[ -n "$kept" ]]; then
             printf '%s\n' "$kept" > "$file"
         else
