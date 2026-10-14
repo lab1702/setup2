@@ -16,7 +16,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | --- | --- |
 | Build tools and C/C++/Fortran | build-essential, gcc, g++, gfortran, cmake |
 | Python | python3, python3-pip, python3-venv, python3-dev |
-| R | r-base, r-base-dev |
+| R | r-base, r-base-dev, r-cran-tidyverse |
 | Go | golang |
 | Rust | rustup (plus the stable toolchain) |
 | Containers | docker.io, docker-buildx, docker-compose-v2 |
