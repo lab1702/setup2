@@ -54,6 +54,9 @@ main() {
         # Data
         sqlite3 sqlite3-tools jq
 
+        # Fonts
+        fonts-jetbrains-mono fonts-jetbrains-mono-web
+
         # System
         openssh-server btop nvtop vim
     )

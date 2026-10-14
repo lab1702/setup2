@@ -24,6 +24,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | General shell tools | wget, curl, gpg, unzip, ripgrep, fd-find, fzf, tree, dos2unix, starship, shellcheck |
 | Web dev | nodejs, npm |
 | Data | sqlite3, sqlite3-tools, jq, DuckDB CLI (latest release, in `~/.local/bin`) |
+| Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web |
 | System | openssh-server, btop, nvtop, vim |
 
 ## What else it does
