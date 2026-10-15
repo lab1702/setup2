@@ -24,11 +24,6 @@ main() {
         exit 1
     fi
 
-    # Temp files and directories to delete on exit, even when interrupted.
-    # Global, not local: the EXIT trap runs after main returns
-    CLEANUP=()
-    trap 'rm -rf "${CLEANUP[@]}"' EXIT
-
     # Stop before changing anything on a system the package list (and the
     # DuckDB download) wasn't written for
     local OS ARCH
@@ -110,20 +105,11 @@ main() {
             -e '/^env[[:space:]]/d' "$1"
     }
 
-    # Succeed if a non-comment line of a file matches an extended regex
-    has_match() {
-        local content
-        # Read into a variable: grep -q in a pipeline can SIGPIPE sed and,
-        # with pipefail, turn a match into a failure
-        content="$(config_lines "$1")"
-        grep -qE -- "$2" <<< "$content"
-    }
-
     # Append a line to a file unless a non-comment line already equals it
     # (ignoring surrounding whitespace) or matches the optional extended
     # regex, which catches the same setting written another way. Warn
-    # instead of failing when the file can't be written (say, a read-only
-    # file that a dotfile manager links to).
+    # instead of failing when the file can't be read or written (say, a
+    # read-only file that a dotfile manager links to).
     add_line() {
         local file="$1" line="$2" pattern="${3:-}" content newline=''
         # Only create a missing file: don't bump the mtime of one we may not change
@@ -131,7 +117,12 @@ main() {
             echo "Warning: could not create $file to add '$line' to it." >&2
             return 0
         fi
-        content="$(config_lines "$file")"
+        # Read into a variable: grep -q in a pipeline can SIGPIPE sed and,
+        # with pipefail, turn a match into a failure
+        if ! content="$(config_lines "$file" 2> /dev/null)"; then
+            echo "Warning: could not read $file to add '$line' to it." >&2
+            return 0
+        fi
         if grep -qxF -- "$line" <<< "$content" ||
             { [[ -n "$pattern" ]] && grep -qE -- "$pattern" <<< "$content"; }; then
             return 0
@@ -182,12 +173,17 @@ main() {
     # bash login shells read only the first of these that exists, so if it
     # doesn't source ~/.profile (or link to it), the settings above never
     # reach them. Only a line that sources it counts, not any mention of it.
-    local LOGIN_FILE
+    local LOGIN_FILE LOGIN_CONTENT
     local SOURCES_PROFILE='(^|[[:space:];&|{(])(\.|source)[[:space:]]+["'\'']?(\$HOME|\$\{HOME\}|~|/home/[^/]+)["'\'']?/\.profile["'\'']?([[:space:];&|)}]|$)'
     for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
         if [[ -f "$LOGIN_FILE" ]]; then
-            if [[ ! "$LOGIN_FILE" -ef "$HOME/.profile" ]] &&
-                ! has_match "$LOGIN_FILE" "$SOURCES_PROFILE"; then
+            if [[ "$LOGIN_FILE" -ef "$HOME/.profile" ]]; then
+                :
+            elif ! LOGIN_CONTENT="$(config_lines "$LOGIN_FILE" 2> /dev/null)"; then
+                echo "Warning: could not read $LOGIN_FILE to check that it" \
+                    "sources ~/.profile, which login shells need for the" \
+                    "settings added to it." >&2
+            elif ! grep -qE -- "$SOURCES_PROFILE" <<< "$LOGIN_CONTENT"; then
                 echo "Warning: $LOGIN_FILE exists and does not source ~/.profile," \
                     "so login shells will miss the settings added to ~/.profile." >&2
             fi
@@ -199,11 +195,13 @@ main() {
     add_line "$HOME/.bashrc" 'eval "$(starship init bash)"' \
         'starship init bash'
 
-    # Install the latest DuckDB CLI release into ~/.local/bin
-    local DUCKDB_TMP
+    # Install the latest DuckDB CLI release into ~/.local/bin. Download into
+    # a temp directory that's deleted on exit, even when interrupted.
+    # Global, not local: the EXIT trap runs after main returns
     DUCKDB_TMP="$(mktemp -d)"
-    CLEANUP+=("$DUCKDB_TMP")
-    curl -fsSL --retry 3 --connect-timeout 30 -o "$DUCKDB_TMP/duckdb.gz" \
+    trap 'rm -rf "$DUCKDB_TMP"' EXIT
+    curl -fsSL --retry 3 --retry-all-errors --connect-timeout 30 \
+        -o "$DUCKDB_TMP/duckdb.gz" \
         "https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${ARCH}.gz"
     gunzip "$DUCKDB_TMP/duckdb.gz"
     install -m 755 "$DUCKDB_TMP/duckdb" "$HOME/.local/bin/duckdb"
