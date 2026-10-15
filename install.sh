@@ -73,7 +73,7 @@ main() {
         fonts-jetbrains-mono fonts-jetbrains-mono-web
 
         # System
-        openssh-server btop nvtop vim hx
+        openssh-server btop nvtop vim hx vulkan-tools
     )
 
     apt_get update
