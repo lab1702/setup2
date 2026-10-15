@@ -48,7 +48,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 - Adds you to the `docker` group so you can run docker without `sudo`.
 - Tells you at the end whether a reboot is needed.
 
-The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add, and updates DuckDB to the latest release.
+The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add, and updates the stable Rust toolchain and DuckDB to their latest releases.
 
 If `~/.profile` or `~/.bashrc` can't be read or written, the script leaves it as it is and prints a warning instead of stopping.
 
