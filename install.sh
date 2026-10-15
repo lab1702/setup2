@@ -172,10 +172,11 @@ main() {
 
     # bash login shells read only the first of these that exists, so if it
     # doesn't source ~/.profile (or link to it), the settings above never
-    # reach them. Only a line that sources it counts, not any mention of it.
+    # reach them. Only a line that sources it counts, not any mention of it;
+    # a relative path counts too, since login shells start in $HOME.
     # One bash can't read (say, a directory or mode 000) still stops it.
     local LOGIN_FILE LOGIN_CONTENT
-    local SOURCES_PROFILE='(^|[[:space:];&|{(])(\.|source)[[:space:]]+["'\'']?(\$HOME|\$\{HOME\}|~|/home/[^/]+)["'\'']?/\.profile["'\'']?([[:space:];&|)}]|$)'
+    local SOURCES_PROFILE='(^|[[:space:];&|{(])(\.|source)[[:space:]]+["'\'']?((\$HOME|\$\{HOME\}|~|/home/[^/]+)["'\'']?/|\./)?\.profile["'\'']?([[:space:];&|)}]|$)'
     for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
         [[ -e "$LOGIN_FILE" ]] || continue
         if [[ ! "$LOGIN_FILE" -ef "$HOME/.profile" ]]; then
@@ -196,9 +197,12 @@ main() {
 
     # Install the latest DuckDB CLI release into ~/.local/bin. Download into
     # a temp directory that's deleted on exit, even when interrupted.
-    # Global, not local: the EXIT trap runs after main returns. Set the
-    # trap first so an interrupt right after mktemp can't skip it.
-    trap 'rm -rf "${DUCKDB_TMP:-}"' EXIT
+    # Global, not local: the EXIT trap runs after main returns. Clear it
+    # first so the trap never removes a DUCKDB_TMP inherited from the
+    # environment, and set the trap before mktemp to narrow the window in
+    # which an interrupt can leave the directory behind.
+    DUCKDB_TMP=''
+    trap 'rm -rf "$DUCKDB_TMP"' EXIT
     DUCKDB_TMP="$(mktemp -d)"
     # Give up on (and retry) a download that stalls below 1 KB/s for a minute
     curl -fsSL --retry 3 --retry-all-errors --connect-timeout 30 \
