@@ -23,6 +23,11 @@ main() {
         exit 1
     fi
 
+    # Temp files and directories to delete on exit, even when interrupted.
+    # Global, not local: the EXIT trap runs after main returns
+    CLEANUP=()
+    trap 'rm -rf "${CLEANUP[@]}"' EXIT
+
     # Stop before changing anything on a system the package list (and the
     # DuckDB download) wasn't written for
     local OS ARCH
@@ -94,31 +99,39 @@ main() {
     npm config set prefix "$HOME/.npm-global"
 
     # Print a file's non-comment lines with comments at the end of a line
-    # and surrounding whitespace trimmed
+    # and surrounding whitespace trimmed. Skip alias and env lines: they
+    # don't change the shell's own settings, even when they mention one.
     config_lines() {
         sed -e 's/^[[:space:]]*//' -e '/^#/d' -e 's/[[:space:]]#.*$//' \
-            -e 's/[[:space:]]*$//' "$1"
+            -e 's/[[:space:]]*$//' -e '/^alias[[:space:]]/d' \
+            -e '/^env[[:space:]]/d' "$1"
     }
 
-    # Append a line to a file unless it is already there (ignoring comments
-    # and surrounding whitespace) or a non-comment line matches the optional
-    # extended regex, which catches the same setting written another way.
-    # Warn instead of failing when the file can't be written (say, a
-    # read-only file that a dotfile manager links to).
+    # Succeed if a file has a line (ignoring comments and surrounding
+    # whitespace), or a non-comment line matches the optional extended
+    # regex, which catches the same setting written another way
+    has_setting() {
+        local file="$1" line="$2" pattern="${3:-}" content
+        [[ -e "$file" ]] || return 1
+        # Read into a variable: grep -q in a pipeline can SIGPIPE sed and,
+        # with pipefail, turn a match into a failure
+        content="$(config_lines "$file")"
+        grep -qxF -- "$line" <<< "$content" && return 0
+        [[ -n "$pattern" ]] && grep -qE -- "$pattern" <<< "$content" && return 0
+        return 1
+    }
+
+    # Append a line to a file unless has_setting finds it there. Warn
+    # instead of failing when the file can't be written (say, a read-only
+    # file that a dotfile manager links to).
     add_line() {
-        local file="$1" line="$2" pattern="${3:-}" content newline=''
+        local file="$1" line="$2" pattern="${3:-}" newline=''
         # Only create a missing file: don't bump the mtime of one we may not change
         if [[ ! -e "$file" ]] && ! touch "$file" 2> /dev/null; then
             echo "Warning: could not create $file to add '$line' to it." >&2
             return 0
         fi
-        # Read into a variable: grep -q in a pipeline can SIGPIPE sed and,
-        # with pipefail, turn a match into a failure
-        content="$(config_lines "$file")"
-        if grep -qxF -- "$line" <<< "$content"; then
-            return 0
-        fi
-        if [[ -n "$pattern" ]] && grep -qE -- "$pattern" <<< "$content"; then
+        if has_setting "$file" "$line" "$pattern"; then
             return 0
         fi
         # Make sure the file ends with a newline so the new line stays separate
@@ -137,38 +150,64 @@ main() {
         grep -cE -- "$2" <<< "$content" || true
     }
 
-    # Remove every line that exactly matches, rewriting the file in place
-    # (through a symlink, keeping its permissions). -a keeps grep printing
-    # lines when the file has bytes it considers binary (a NUL or non-UTF-8
-    # text), and a temp file rather than a variable keeps NULs and trailing
-    # blank lines. Leave the file alone, with a warning, if it can't be
-    # written or removing the line would change what the rest of it does:
-    # - the line before continues onto it (ends in &&, ||, | or \), so the
-    #   next command would take its place;
+    # Remove every line that exactly matches. Write the rest to a temp file
+    # next to the real file (following a symlink), give it the same
+    # permissions and rename it over the original, so an interrupted or
+    # failed write (Ctrl-C, a full disk) leaves the original as it was.
+    # -a keeps grep printing lines when the file has bytes it considers
+    # binary (a NUL or non-UTF-8 text). Leave the file alone, with a
+    # warning, if it can't be rewritten or removing the line would change
+    # what the rest of it does:
+    # - the command before continues onto it, so the next command would
+    #   take its place: the last line of code before it ends in &&, || or |
+    #   (bash skips comments and blank lines in between), or the line right
+    #   before it ends in an unescaped backslash;
     # - the rest would stop parsing, e.g. when the line was the only command
     #   inside an if block. Parse with extglob on, as files that enable it
     #   use its patterns, and only compare against the original: bash -n can
     #   reject files that source fine, and those must not block the removal.
     remove_line() {
-        local file="$1" line="$2" kept status=0
+        local file="$1" line="$2" target kept status=0
         grep -aqxF -- "$line" "$file" 2> /dev/null || return 0
         if LINE="$line" awk '
-            $0 == ENVIRON["LINE"] && prev ~ /(&&|\||\\)[[:space:]]*$/ { found = 1 }
-            $0 !~ /^[[:space:]]*$/ { prev = $0 }
+            {
+                if ($0 == ENVIRON["LINE"] && (op || bs)) found = 1
+                bs = 0
+                s = $0
+                sub(/^[[:space:]]+/, "", s)
+                if (s == "" || s ~ /^#/) next
+                # A backslash only continues a line it ends, outside a comment
+                if (!sub(/[[:space:]]+#.*$/, "", s) && match(s, /\\+$/))
+                    bs = RLENGTH % 2
+                sub(/[[:space:]]+$/, "", s)
+                op = s ~ /(&&|\|)$/
+            }
             END { exit !found }' "$file"; then
             echo "Warning: not removing '$line' from $file because the line" \
                 "before it continues onto it." >&2
             return 0
         fi
-        kept="$(mktemp)"
-        grep -avxF -- "$line" "$file" > "$kept" || status=$?
+        # Renaming needs only the directory to be writable: check the file
+        # is too, so a read-only one stays as it is
+        target="$(readlink -f -- "$file")"
+        if [[ ! -w "$target" ]]; then
+            echo "Warning: could not remove '$line' from $file." >&2
+            return 0
+        fi
+        # Queue the temp file for cleanup before creating it, so Ctrl-C
+        # can't leave it behind. umask keeps it private until the chmod.
+        kept="$target.setup2-tmp"
+        CLEANUP+=("$kept")
+        (umask 077 && grep -avxF -- "$line" "$file" > "$kept") 2> /dev/null ||
+            status=$?
         if (( status > 1 )); then
-            echo "Warning: could not read $file to remove '$line' from it." >&2
+            echo "Warning: could not remove '$line' from $file." >&2
         elif bash -O extglob -n "$file" 2> /dev/null &&
             ! bash -O extglob -n "$kept" 2> /dev/null; then
             echo "Warning: not removing '$line' from $file because the rest" \
                 "of the file would not parse without it." >&2
-        elif ! cat "$kept" 2> /dev/null > "$file"; then
+        elif ! { chmod --reference="$target" "$kept" &&
+            mv -f "$kept" "$target"; } 2> /dev/null; then
             echo "Warning: could not remove '$line' from $file." >&2
         fi
         rm -f "$kept"
@@ -177,22 +216,28 @@ main() {
     # Environment settings go in ~/.profile so login and non-interactive
     # shells get them too (Ubuntu's .bashrc returns early for those)
     # The patterns that catch a directory already added to PATH match only
-    # PATH assignments, not other lines that mention the directory (a GOBIN
-    # line, an alias, Ubuntu's -d test) or a later command on the same line.
-    # They match the directory itself, not a subdirectory, and only under
-    # $HOME, not under another variable whose name ends in HOME.
-    local ASSIGNS_PATH='(^|[[:space:];])PATH\+?=[^;]*'
+    # the value of a PATH assignment, as one of its :-separated entries, not
+    # other lines that mention the directory (a GOBIN line, Ubuntu's -d
+    # test) or text after the value (a later command, a command substitution
+    # that removes the directory). They match the directory itself, not a
+    # subdirectory, under $HOME or /home/<user>, not under another variable
+    # whose name ends in HOME.
+    local ASSIGNS_PATH='(^|[[:space:];])PATH\+?=["'\'']?([^[:space:];&|]*[:"'\''}(])?'
     local IN_HOME='(\$HOME|\$\{HOME\}|~|/home/[^/]+)"?/'
-    local DIR_END='/?(["'\'':;}$[:space:]]|$)'
-    add_line "$HOME/.profile" 'export PIP_REQUIRE_VIRTUALENV=1' \
-        'PIP_REQUIRE_VIRTUALENV='
-    add_line "$HOME/.profile" 'export PATH="$HOME/.npm-global/bin:$PATH"' \
-        "${ASSIGNS_PATH}${IN_HOME}\.npm-global/bin${DIR_END}"
-    add_line "$HOME/.profile" 'export PATH="$HOME/go/bin:$PATH"' \
-        "${ASSIGNS_PATH}(${IN_HOME}go/bin${DIR_END}|go env GOPATH)"
+    local DIR_END='/?(["'\'':;}[:space:]]|\$\{?PATH|$)'
+    local PIP_LINE='export PIP_REQUIRE_VIRTUALENV=1'
+    local PIP_PATTERN='PIP_REQUIRE_VIRTUALENV='
+    local NPM_LINE='export PATH="$HOME/.npm-global/bin:$PATH"'
+    local NPM_PATTERN="${ASSIGNS_PATH}${IN_HOME}\.npm-global/bin${DIR_END}"
+    local GO_LINE='export PATH="$HOME/go/bin:$PATH"'
+    local GO_PATTERN="${ASSIGNS_PATH}(${IN_HOME}go/bin${DIR_END}|go env GOPATH)"
     # Sourcing ~/.cargo/env, as rustup's own installer does, also adds it
-    add_line "$HOME/.profile" 'export PATH="$HOME/.cargo/bin:$PATH"' \
-        "${ASSIGNS_PATH}${IN_HOME}\.cargo/bin${DIR_END}|(^|[[:space:];])(\.|source)[[:space:]][^;]*\.cargo/env"
+    local CARGO_LINE='export PATH="$HOME/.cargo/bin:$PATH"'
+    local CARGO_PATTERN="${ASSIGNS_PATH}${IN_HOME}\.cargo/bin${DIR_END}|(^|[[:space:];])(\.|source)[[:space:]]+[^[:space:];&|]*\.cargo/env[\"']?([[:space:];&|)}]|$)"
+    add_line "$HOME/.profile" "$PIP_LINE" "$PIP_PATTERN"
+    add_line "$HOME/.profile" "$NPM_LINE" "$NPM_PATTERN"
+    add_line "$HOME/.profile" "$GO_LINE" "$GO_PATTERN"
+    add_line "$HOME/.profile" "$CARGO_LINE" "$CARGO_PATTERN"
 
     # Ubuntu's default ~/.profile adds ~/.local/bin, but only if it exists at
     # login, so create it now. Older versions of this script also exported it;
@@ -227,20 +272,22 @@ main() {
     # Now that ~/.profile covers them, drop those exact lines so interactive
     # shells don't add each directory to PATH twice. Keep them when login
     # shells skip ~/.profile, because ~/.bashrc is then the only place they
-    # work, when ~/.bashrc is the same file as ~/.profile, and when
-    # ~/.profile can't be written, as the settings may not have reached it.
-    if (( PROFILE_IS_READ )) && [[ -w "$HOME/.profile" ]] &&
-        [[ ! "$HOME/.bashrc" -ef "$HOME/.profile" ]]; then
-        local OLD_BASHRC_LINE BASHRC_BEFORE
+    # work, and when ~/.bashrc is the same file as ~/.profile.
+    if (( PROFILE_IS_READ )) && [[ ! "$HOME/.bashrc" -ef "$HOME/.profile" ]]; then
+        # Check each setting really is in ~/.profile first: adding it can
+        # fail even when the file is writable (say, on a full disk)
+        drop_from_bashrc() {
+            if has_setting "$HOME/.profile" "$1" "$2"; then
+                remove_line "$HOME/.bashrc" "$1"
+            fi
+        }
+        local BASHRC_BEFORE
         BASHRC_BEFORE="$(cat "$HOME/.bashrc" 2> /dev/null || true)"
-        for OLD_BASHRC_LINE in \
-            'export PIP_REQUIRE_VIRTUALENV=1' \
-            'export PATH="$HOME/.npm-global/bin:$PATH"' \
-            'export PATH="$HOME/go/bin:$PATH"' \
-            'export PATH="$HOME/.cargo/bin:$PATH"' \
-            "$LOCAL_BIN_LINE"; do
-            remove_line "$HOME/.bashrc" "$OLD_BASHRC_LINE"
-        done
+        drop_from_bashrc "$PIP_LINE" "$PIP_PATTERN"
+        drop_from_bashrc "$NPM_LINE" "$NPM_PATTERN"
+        drop_from_bashrc "$GO_LINE" "$GO_PATTERN"
+        drop_from_bashrc "$CARGO_LINE" "$CARGO_PATTERN"
+        drop_from_bashrc "$LOCAL_BIN_LINE" "$LOCAL_BIN_PATTERN"
         # Until the user logs in again, new terminals only see ~/.bashrc
         if [[ "$(cat "$HOME/.bashrc" 2> /dev/null || true)" != "$BASHRC_BEFORE" ]]; then
             echo "Moved settings from ~/.bashrc to ~/.profile." \
@@ -253,9 +300,9 @@ main() {
         'starship init bash'
 
     # Install the latest DuckDB CLI release into ~/.local/bin
-    # Global, not local: the EXIT trap runs after main returns
+    local DUCKDB_TMP
     DUCKDB_TMP="$(mktemp -d)"
-    trap 'rm -rf "$DUCKDB_TMP"' EXIT
+    CLEANUP+=("$DUCKDB_TMP")
     curl -fsSL -o "$DUCKDB_TMP/duckdb.gz" \
         "https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${ARCH}.gz"
     gunzip "$DUCKDB_TMP/duckdb.gz"
