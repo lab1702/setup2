@@ -44,13 +44,13 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 
 - Creates `~/.local/bin` so Ubuntu's default `~/.profile` puts it on your PATH.
 - Adds `eval "$(starship init bash)"` to `~/.bashrc` to turn on the starship prompt, unless `~/.bashrc` already initializes starship.
-- Warns you if a `~/.bash_profile` or `~/.bash_login` would stop login shells from reading `~/.profile`.
+- Warns you if a `~/.bash_profile` or `~/.bash_login` would stop login shells from reading `~/.profile`, either because it doesn't source `~/.profile` or because it can't be read.
 - Adds you to the `docker` group so you can run docker without `sudo`.
 - Tells you at the end whether a reboot is needed.
 
 The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add, and updates DuckDB to the latest release.
 
-If a dotfile can't be written, the script leaves it as it is and prints a warning instead of stopping.
+If `~/.profile` or `~/.bashrc` can't be read or written, the script leaves it as it is and prints a warning instead of stopping.
 
 ## Notes
 

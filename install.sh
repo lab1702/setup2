@@ -173,22 +173,21 @@ main() {
     # bash login shells read only the first of these that exists, so if it
     # doesn't source ~/.profile (or link to it), the settings above never
     # reach them. Only a line that sources it counts, not any mention of it.
+    # One bash can't read (say, a directory or mode 000) still stops it.
     local LOGIN_FILE LOGIN_CONTENT
     local SOURCES_PROFILE='(^|[[:space:];&|{(])(\.|source)[[:space:]]+["'\'']?(\$HOME|\$\{HOME\}|~|/home/[^/]+)["'\'']?/\.profile["'\'']?([[:space:];&|)}]|$)'
     for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
-        if [[ -f "$LOGIN_FILE" ]]; then
-            if [[ "$LOGIN_FILE" -ef "$HOME/.profile" ]]; then
-                :
-            elif ! LOGIN_CONTENT="$(config_lines "$LOGIN_FILE" 2> /dev/null)"; then
-                echo "Warning: could not read $LOGIN_FILE to check that it" \
-                    "sources ~/.profile, which login shells need for the" \
-                    "settings added to it." >&2
+        [[ -e "$LOGIN_FILE" ]] || continue
+        if [[ ! "$LOGIN_FILE" -ef "$HOME/.profile" ]]; then
+            if ! LOGIN_CONTENT="$(config_lines "$LOGIN_FILE" 2> /dev/null)"; then
+                echo "Warning: $LOGIN_FILE can't be read, so login shells stop" \
+                    "at it and skip all of ~/.profile. Fix or remove it." >&2
             elif ! grep -qE -- "$SOURCES_PROFILE" <<< "$LOGIN_CONTENT"; then
                 echo "Warning: $LOGIN_FILE exists and does not source ~/.profile," \
                     "so login shells will miss the settings added to ~/.profile." >&2
             fi
-            break
         fi
+        break
     done
 
     # Interactive prompt setup goes in ~/.bashrc
@@ -197,11 +196,13 @@ main() {
 
     # Install the latest DuckDB CLI release into ~/.local/bin. Download into
     # a temp directory that's deleted on exit, even when interrupted.
-    # Global, not local: the EXIT trap runs after main returns
+    # Global, not local: the EXIT trap runs after main returns. Set the
+    # trap first so an interrupt right after mktemp can't skip it.
+    trap 'rm -rf "${DUCKDB_TMP:-}"' EXIT
     DUCKDB_TMP="$(mktemp -d)"
-    trap 'rm -rf "$DUCKDB_TMP"' EXIT
+    # Give up on (and retry) a download that stalls below 1 KB/s for a minute
     curl -fsSL --retry 3 --retry-all-errors --connect-timeout 30 \
-        -o "$DUCKDB_TMP/duckdb.gz" \
+        --speed-limit 1024 --speed-time 60 -o "$DUCKDB_TMP/duckdb.gz" \
         "https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${ARCH}.gz"
     gunzip "$DUCKDB_TMP/duckdb.gz"
     install -m 755 "$DUCKDB_TMP/duckdb" "$HOME/.local/bin/duckdb"
