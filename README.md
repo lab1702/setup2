@@ -55,6 +55,7 @@ If a dotfile can't be written, or removing an old line would change what the res
 ## Notes
 
 - Log out and back in after the first run for the `docker` group and the `~/.profile` PATH changes to take effect. The same applies after a run that moves settings from `~/.bashrc` to `~/.profile`: until then, new terminals won't have them.
+- In SSH and console logins, Ubuntu's default `~/.profile` runs `~/.bashrc` before it reaches the PATH lines this script adds at the end, so commands in `~/.bashrc` can't use programs from `~/.npm-global/bin`, `~/go/bin` or `~/.cargo/bin` there (this includes `~/.bashrc` lines that relied on the PATH lines the script moved to `~/.profile`). Desktop terminals aren't affected. To fix it, move those PATH lines above the part of `~/.profile` that runs `~/.bashrc`.
 - `fd-find` installs its command as `fdfind`.
 - Installing `openssh-server` starts SSH on port 22 with password logins allowed.
 

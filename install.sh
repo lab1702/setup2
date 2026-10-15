@@ -97,7 +97,9 @@ main() {
     rustup default stable
 
     # Install global npm packages under the user's home instead of system dirs
-    npm config set prefix "$HOME/.npm-global"
+    if ! npm config set prefix "$HOME/.npm-global"; then
+        echo "Warning: could not set the npm prefix to ~/.npm-global." >&2
+    fi
 
     # Print a file's non-comment lines with comments at the end of a line
     # and surrounding whitespace trimmed. Skip alias and env lines: they
@@ -168,7 +170,7 @@ main() {
     #   use its patterns, and only compare against the original: bash -n can
     #   reject files that source fine, and those must not block the removal.
     remove_line() {
-        local file="$1" line="$2" target kept status=0
+        local file="$1" line="$2" target kept
         grep -aqxF -- "$line" "$file" 2> /dev/null || return 0
         if LINE="$line" awk '
             {
@@ -197,11 +199,12 @@ main() {
         fi
         # Queue the temp file for cleanup before creating it, so Ctrl-C
         # can't leave it behind. umask keeps it private until the chmod.
+        # grep exits 1 when no lines are left, which is fine; open the temp
+        # file first so failing to create it isn't mistaken for that.
         kept="$target.setup2-tmp"
         CLEANUP+=("$kept")
-        (umask 077 && grep -avxF -- "$line" "$file" > "$kept") 2> /dev/null ||
-            status=$?
-        if (( status > 1 )); then
+        if ! (umask 077 && exec > "$kept" &&
+            { grep -avxF -- "$line" "$file" || (( $? == 1 )); }) 2> /dev/null; then
             echo "Warning: could not remove '$line' from $file." >&2
         elif bash -O extglob -n "$file" 2> /dev/null &&
             ! bash -O extglob -n "$kept" 2> /dev/null; then
@@ -306,7 +309,7 @@ main() {
     local DUCKDB_TMP
     DUCKDB_TMP="$(mktemp -d)"
     CLEANUP+=("$DUCKDB_TMP")
-    curl -fsSL -o "$DUCKDB_TMP/duckdb.gz" \
+    curl -fsSL --retry 3 --connect-timeout 30 -o "$DUCKDB_TMP/duckdb.gz" \
         "https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${ARCH}.gz"
     gunzip "$DUCKDB_TMP/duckdb.gz"
     install -m 755 "$DUCKDB_TMP/duckdb" "$HOME/.local/bin/duckdb"
