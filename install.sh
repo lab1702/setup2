@@ -90,6 +90,7 @@ main() {
 
     # Install the stable Rust toolchain (rustc, cargo, etc.) for the invoking user
     rustup default stable
+    rustup update
 
     # Install global npm packages under the user's home instead of system dirs
     if ! npm config set prefix "$HOME/.npm-global"; then
