@@ -172,11 +172,10 @@ main() {
 
     # bash login shells read only the first of these that exists, so if it
     # doesn't source ~/.profile (or link to it), the settings above never
-    # reach them. Only a line that sources it counts, not any mention of it;
-    # a relative path counts too, since login shells start in $HOME.
+    # reach them. Only a line that sources it counts, not any mention of it.
     # One bash can't read (say, a directory or mode 000) still stops it.
     local LOGIN_FILE LOGIN_CONTENT
-    local SOURCES_PROFILE='(^|[[:space:];&|{(])(\.|source)[[:space:]]+["'\'']?((\$HOME|\$\{HOME\}|~|/home/[^/]+)["'\'']?/|\./)?\.profile["'\'']?([[:space:];&|)}]|$)'
+    local SOURCES_PROFILE='(^|[[:space:];&|{(])(\.|source)[[:space:]]+["'\'']?(\$HOME|\$\{HOME\}|~|/home/[^/]+)["'\'']?/\.profile["'\'']?([[:space:];&|)}]|$)'
     for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
         [[ -e "$LOGIN_FILE" ]] || continue
         if [[ ! "$LOGIN_FILE" -ef "$HOME/.profile" ]]; then
