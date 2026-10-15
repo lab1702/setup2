@@ -48,14 +48,14 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 - Adds you to the `docker` group so you can run docker without `sudo`.
 - Tells you at the end whether a reboot is needed.
 
-The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add or remove, removes the `~/.local/bin` line that older versions added to `~/.profile` when another line there (such as Ubuntu's default) already adds the directory, moves the settings that the earliest versions put in `~/.bashrc` to `~/.profile` (removing the old `~/.bashrc` lines, unless login shells skip `~/.profile`, `~/.bashrc` is the same file as `~/.profile`, or a setting couldn't be added to `~/.profile`), and updates DuckDB to the latest release (removing the old copy in `~/bin` that earlier versions installed).
+The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add, and updates DuckDB to the latest release.
 
-If a dotfile can't be written, or removing an old line would change what the rest of the file does (the command before it continues onto it, or the file would no longer parse), the script leaves that file as it is and prints a warning instead of stopping.
+If a dotfile can't be written, the script leaves it as it is and prints a warning instead of stopping.
 
 ## Notes
 
-- Log out and back in after the first run for the `docker` group and the `~/.profile` PATH changes to take effect. The same applies after a run that moves settings from `~/.bashrc` to `~/.profile`: until then, new terminals won't have them.
-- In SSH and console logins, Ubuntu's default `~/.profile` runs `~/.bashrc` before it reaches the PATH lines this script adds at the end, so commands in `~/.bashrc` can't use programs from `~/.npm-global/bin`, `~/go/bin` or `~/.cargo/bin` there (this includes `~/.bashrc` lines that relied on the PATH lines the script moved to `~/.profile`). Desktop terminals aren't affected. To fix it, move those PATH lines above the part of `~/.profile` that runs `~/.bashrc`.
+- Log out and back in after the first run for the `docker` group and the `~/.profile` PATH changes to take effect.
+- In SSH and console logins, Ubuntu's default `~/.profile` runs `~/.bashrc` before it reaches the PATH lines this script adds at the end, so commands in `~/.bashrc` can't use programs from `~/.npm-global/bin`, `~/go/bin` or `~/.cargo/bin` there. Desktop terminals aren't affected. To fix it, move those PATH lines above the part of `~/.profile` that runs `~/.bashrc`.
 - `fd-find` installs its command as `fdfind`.
 - Installing `openssh-server` starts SSH on port 22 with password logins allowed.
 

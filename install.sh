@@ -110,31 +110,30 @@ main() {
             -e '/^env[[:space:]]/d' "$1"
     }
 
-    # Succeed if a file has a line (ignoring comments and surrounding
-    # whitespace), or a non-comment line matches the optional extended
-    # regex, which catches the same setting written another way
-    has_setting() {
-        local file="$1" line="$2" pattern="${3:-}" content
-        [[ -e "$file" ]] || return 1
+    # Succeed if a non-comment line of a file matches an extended regex
+    has_match() {
+        local content
         # Read into a variable: grep -q in a pipeline can SIGPIPE sed and,
         # with pipefail, turn a match into a failure
-        content="$(config_lines "$file")"
-        grep -qxF -- "$line" <<< "$content" && return 0
-        [[ -n "$pattern" ]] && grep -qE -- "$pattern" <<< "$content" && return 0
-        return 1
+        content="$(config_lines "$1")"
+        grep -qE -- "$2" <<< "$content"
     }
 
-    # Append a line to a file unless has_setting finds it there. Warn
+    # Append a line to a file unless a non-comment line already equals it
+    # (ignoring surrounding whitespace) or matches the optional extended
+    # regex, which catches the same setting written another way. Warn
     # instead of failing when the file can't be written (say, a read-only
     # file that a dotfile manager links to).
     add_line() {
-        local file="$1" line="$2" pattern="${3:-}" newline=''
+        local file="$1" line="$2" pattern="${3:-}" content newline=''
         # Only create a missing file: don't bump the mtime of one we may not change
         if [[ ! -e "$file" ]] && ! touch "$file" 2> /dev/null; then
             echo "Warning: could not create $file to add '$line' to it." >&2
             return 0
         fi
-        if has_setting "$file" "$line" "$pattern"; then
+        content="$(config_lines "$file")"
+        if grep -qxF -- "$line" <<< "$content" ||
+            { [[ -n "$pattern" ]] && grep -qE -- "$pattern" <<< "$content"; }; then
             return 0
         fi
         # Make sure the file ends with a newline so the new line stays separate
@@ -144,77 +143,6 @@ main() {
         if ! printf '%s%s\n' "$newline" "$line" 2> /dev/null >> "$file"; then
             echo "Warning: could not add '$line' to $file." >&2
         fi
-    }
-
-    # Count the non-comment lines of a file that match an extended regex
-    count_matches() {
-        local content
-        content="$(config_lines "$1")"
-        grep -cE -- "$2" <<< "$content" || true
-    }
-
-    # Remove every line that exactly matches. Write the rest to a temp file
-    # next to the real file (following a symlink), give it the same
-    # permissions and rename it over the original, so an interrupted or
-    # failed write (Ctrl-C, a full disk) leaves the original as it was.
-    # -a keeps grep printing lines when the file has bytes it considers
-    # binary (a NUL or non-UTF-8 text). Leave the file alone, with a
-    # warning, if it can't be rewritten or removing the line would change
-    # what the rest of it does:
-    # - the command before continues onto it, so the next command would
-    #   take its place: the last line of code before it ends in &&, || or |
-    #   (bash skips comments and blank lines in between), or the line right
-    #   before it ends in an unescaped backslash;
-    # - the rest would stop parsing, e.g. when the line was the only command
-    #   inside an if block. Parse with extglob on, as files that enable it
-    #   use its patterns, and only compare against the original: bash -n can
-    #   reject files that source fine, and those must not block the removal.
-    remove_line() {
-        local file="$1" line="$2" target kept
-        grep -aqxF -- "$line" "$file" 2> /dev/null || return 0
-        if LINE="$line" awk '
-            {
-                if ($0 == ENVIRON["LINE"] && (op || bs)) found = 1
-                bs = 0
-                s = $0
-                sub(/^[[:space:]]+/, "", s)
-                if (s == "" || s ~ /^#/) next
-                # A backslash only continues a line it ends, outside a comment
-                if (!sub(/[[:space:]]+#.*$/, "", s) && match(s, /\\+$/))
-                    bs = RLENGTH % 2
-                sub(/[[:space:]]+$/, "", s)
-                op = s ~ /(&&|\|)$/
-            }
-            END { exit !found }' "$file"; then
-            echo "Warning: not removing '$line' from $file because the line" \
-                "before it continues onto it." >&2
-            return 0
-        fi
-        # Renaming needs only the directory to be writable: check the file
-        # is too, so a read-only one stays as it is
-        target="$(readlink -f -- "$file")"
-        if [[ ! -w "$target" ]]; then
-            echo "Warning: could not remove '$line' from $file." >&2
-            return 0
-        fi
-        # Queue the temp file for cleanup before creating it, so Ctrl-C
-        # can't leave it behind. umask keeps it private until the chmod.
-        # grep exits 1 when no lines are left, which is fine; open the temp
-        # file first so failing to create it isn't mistaken for that.
-        kept="$target.setup2-tmp"
-        CLEANUP+=("$kept")
-        if ! (umask 077 && exec > "$kept" &&
-            { grep -avxF -- "$line" "$file" || (( $? == 1 )); }) 2> /dev/null; then
-            echo "Warning: could not remove '$line' from $file." >&2
-        elif bash -O extglob -n "$file" 2> /dev/null &&
-            ! bash -O extglob -n "$kept" 2> /dev/null; then
-            echo "Warning: not removing '$line' from $file because the rest" \
-                "of the file would not parse without it." >&2
-        elif ! { chmod --reference="$target" "$kept" &&
-            mv -f "$kept" "$target"; } 2> /dev/null; then
-            echo "Warning: could not remove '$line' from $file." >&2
-        fi
-        rm -f "$kept"
     }
 
     # Environment settings go in ~/.profile, which the login session reads,
@@ -246,60 +174,26 @@ main() {
     add_line "$HOME/.profile" "$CARGO_LINE" "$CARGO_PATTERN"
 
     # Ubuntu's default ~/.profile adds ~/.local/bin, but only if it exists at
-    # login, so create it now. Older versions of this script also exported it;
-    # drop that line when something else in ~/.profile already adds the
-    # directory, and add it only if nothing does.
+    # login, so create it now, and add it only if nothing in ~/.profile does
     mkdir -p "$HOME/.local/bin"
-    local LOCAL_BIN_LINE='export PATH="$HOME/.local/bin:$PATH"'
-    local LOCAL_BIN_PATTERN="${ASSIGNS_PATH}${IN_HOME}\.local/bin${DIR_END}"
-    if (( $(count_matches "$HOME/.profile" "$LOCAL_BIN_PATTERN") > 1 )); then
-        remove_line "$HOME/.profile" "$LOCAL_BIN_LINE"
-    fi
-    add_line "$HOME/.profile" "$LOCAL_BIN_LINE" "$LOCAL_BIN_PATTERN"
+    add_line "$HOME/.profile" 'export PATH="$HOME/.local/bin:$PATH"' \
+        "${ASSIGNS_PATH}${IN_HOME}\.local/bin${DIR_END}"
 
     # bash login shells read only the first of these that exists, so if it
     # doesn't source ~/.profile (or link to it), the settings above never
     # reach them. Only a line that sources it counts, not any mention of it.
-    local LOGIN_FILE PROFILE_IS_READ=1
+    local LOGIN_FILE
     local SOURCES_PROFILE='(^|[[:space:];&|{(])(\.|source)[[:space:]]+["'\'']?(\$HOME|\$\{HOME\}|~|/home/[^/]+)["'\'']?/\.profile["'\'']?([[:space:];&|)}]|$)'
     for LOGIN_FILE in "$HOME/.bash_profile" "$HOME/.bash_login"; do
         if [[ -f "$LOGIN_FILE" ]]; then
             if [[ ! "$LOGIN_FILE" -ef "$HOME/.profile" ]] &&
-                (( $(count_matches "$LOGIN_FILE" "$SOURCES_PROFILE") == 0 )); then
-                PROFILE_IS_READ=0
+                ! has_match "$LOGIN_FILE" "$SOURCES_PROFILE"; then
                 echo "Warning: $LOGIN_FILE exists and does not source ~/.profile," \
                     "so login shells will miss the settings added to ~/.profile." >&2
             fi
             break
         fi
     done
-
-    # Older versions of this script put these settings in ~/.bashrc instead.
-    # Now that ~/.profile covers them, drop those exact lines so interactive
-    # shells don't add each directory to PATH twice. Keep them when login
-    # shells skip ~/.profile, because ~/.bashrc is then the only place they
-    # work, and when ~/.bashrc is the same file as ~/.profile.
-    if (( PROFILE_IS_READ )) && [[ ! "$HOME/.bashrc" -ef "$HOME/.profile" ]]; then
-        # Check each setting really is in ~/.profile first: adding it can
-        # fail even when the file is writable (say, on a full disk)
-        drop_from_bashrc() {
-            if has_setting "$HOME/.profile" "$1" "$2"; then
-                remove_line "$HOME/.bashrc" "$1"
-            fi
-        }
-        local BASHRC_BEFORE
-        BASHRC_BEFORE="$(cat "$HOME/.bashrc" 2> /dev/null || true)"
-        drop_from_bashrc "$PIP_LINE" "$PIP_PATTERN"
-        drop_from_bashrc "$NPM_LINE" "$NPM_PATTERN"
-        drop_from_bashrc "$GO_LINE" "$GO_PATTERN"
-        drop_from_bashrc "$CARGO_LINE" "$CARGO_PATTERN"
-        drop_from_bashrc "$LOCAL_BIN_LINE" "$LOCAL_BIN_PATTERN"
-        # Until the user logs in again, new terminals only see ~/.bashrc
-        if [[ "$(cat "$HOME/.bashrc" 2> /dev/null || true)" != "$BASHRC_BEFORE" ]]; then
-            echo "Moved settings from ~/.bashrc to ~/.profile." \
-                "Log out and back in for new terminals to pick them up."
-        fi
-    fi
 
     # Interactive prompt setup goes in ~/.bashrc
     add_line "$HOME/.bashrc" 'eval "$(starship init bash)"' \
@@ -317,8 +211,6 @@ main() {
     local DUCKDB_VERSION
     DUCKDB_VERSION="$("$HOME/.local/bin/duckdb" --version)"
     echo "Installed $DUCKDB_VERSION to $HOME/.local/bin/duckdb"
-    # Older versions of this script installed it into ~/bin
-    rm -f "$HOME/bin/duckdb"
 
     echo "Done."
 
