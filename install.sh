@@ -65,6 +65,14 @@ main() {
     apt_get full-upgrade
     apt_get install "${PACKAGES[@]}"
 
+    # Let the invoking user run docker without sudo (takes effect after re-login).
+    # Do it right after the apt steps, while sudo still has the password cached,
+    # so a long install doesn't leave the script waiting for it at the end
+    local USER_NAME
+    USER_NAME="$(id -un)"
+    sudo usermod -aG docker "$USER_NAME"
+    echo "Added $USER_NAME to the docker group. Log out and back in for it to take effect."
+
     # Install the stable Rust toolchain (rustc, cargo, etc.) for the invoking user
     rustup default stable
 
@@ -135,21 +143,24 @@ main() {
         'PIP_REQUIRE_VIRTUALENV='
     add_line "$HOME/.profile" 'export PATH="$HOME/.npm-global/bin:$PATH"' \
         '\.npm-global/bin'
-    # Match only PATH assignments: a GOBIN or GOPATH line doesn't add it
+    # Match only PATH assignments of the directory itself: a GOBIN or GOPATH
+    # line, or one that adds a subdirectory, doesn't add it
     add_line "$HOME/.profile" 'export PATH="$HOME/go/bin:$PATH"' \
-        '(^|[[:space:];])PATH\+?=.*((HOME\}?|~|/home/[^/]+)/go/bin|go env GOPATH)'
-    # rustup's own installer sources ~/.cargo/env instead
+        '(^|[[:space:];])PATH\+?=.*((HOME\}?|~|/home/[^/]+)/go/bin/?(["'\'':;[:space:]]|$)|go env GOPATH)'
+    # Match only PATH assignments, or sourcing ~/.cargo/env as rustup's own
+    # installer does: other lines that mention ~/.cargo/bin don't add it
     add_line "$HOME/.profile" 'export PATH="$HOME/.cargo/bin:$PATH"' \
-        '\.cargo/(bin|env)'
+        '(^|[[:space:];])PATH\+?=.*\.cargo/bin/?(["'\'':;[:space:]]|$)|(^|[[:space:];])(\.|source)[[:space:]].*\.cargo/env'
 
     # Ubuntu's default ~/.profile adds ~/.local/bin, but only if it exists at
     # login, so create it now. Older versions of this script also exported it;
     # drop that line when something else in ~/.profile already adds the
     # directory, and add it only if nothing does. Match only PATH assignments,
-    # not other lines that mention the directory (like Ubuntu's -d test).
+    # not other lines that mention the directory (like Ubuntu's -d test) or
+    # add a subdirectory of it.
     mkdir -p "$HOME/.local/bin"
     local LOCAL_BIN_LINE='export PATH="$HOME/.local/bin:$PATH"'
-    local LOCAL_BIN_PATTERN='(^|[[:space:];])PATH\+?=.*(HOME\}?|~|/home/[^/]+)/\.local/bin'
+    local LOCAL_BIN_PATTERN='(^|[[:space:];])PATH\+?=.*(HOME\}?|~|/home/[^/]+)/\.local/bin/?(["'\'':;[:space:]]|$)'
     if (( $(count_matches "$HOME/.profile" "$LOCAL_BIN_PATTERN") > 1 )); then
         remove_line "$HOME/.profile" "$LOCAL_BIN_LINE"
     fi
@@ -211,12 +222,6 @@ main() {
     echo "Installed $("$HOME/.local/bin/duckdb" --version) to $HOME/.local/bin/duckdb"
     # Older versions of this script installed it into ~/bin
     rm -f "$HOME/bin/duckdb"
-
-    # Let the invoking user run docker without sudo (takes effect after re-login)
-    local USER_NAME
-    USER_NAME="$(id -un)"
-    sudo usermod -aG docker "$USER_NAME"
-    echo "Added $USER_NAME to the docker group. Log out and back in for it to take effect."
 
     echo "Done."
 
