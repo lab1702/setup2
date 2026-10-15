@@ -29,7 +29,6 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 
 ## What else it does
 
-- Enables amd64v3-optimized packages on amd64 if the CPU supports x86-64-v3, and disables them if it doesn't.
 - Runs `apt-get update` and `apt-get full-upgrade` before installing, waiting up to 10 minutes for the package lock if something else (like unattended-upgrades) holds it.
 - Sets the npm global prefix to `~/.npm-global`.
 - Adds these lines to `~/.profile` unless that setting is already there (commented-out lines don't count):

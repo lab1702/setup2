@@ -61,24 +61,6 @@ main() {
         openssh-server btop nvtop vim hx
     )
 
-    # Use amd64v3-optimized packages if the CPU supports x86-64-v3, and stop
-    # using them if it doesn't (e.g. the disk moved to an older machine)
-    local AMD64V3_CONF=/etc/apt/apt.conf.d/99enable-amd64v3 LD_SO_HELP
-    LD_SO_HELP="$(/lib64/ld-linux-x86-64.so.2 --help 2>/dev/null || true)"
-    if [[ "$(dpkg --print-architecture)" == "amd64" ]]; then
-        if [[ "$LD_SO_HELP" == *"x86-64-v3 (supported"* ]]; then
-            if [[ ! -f "$AMD64V3_CONF" ]]; then
-                echo 'APT::Architecture-Variants "amd64v3";' | sudo tee "$AMD64V3_CONF" > /dev/null
-            fi
-            echo "CPU supports x86-64-v3: using amd64v3 packages."
-        else
-            if [[ -f "$AMD64V3_CONF" ]]; then
-                sudo rm -f "$AMD64V3_CONF"
-            fi
-            echo "CPU does not support x86-64-v3: using baseline amd64 packages."
-        fi
-    fi
-
     apt_get update
     apt_get full-upgrade
     apt_get install "${PACKAGES[@]}"
