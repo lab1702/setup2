@@ -35,9 +35,9 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 
   ```bash
   export PIP_REQUIRE_VIRTUALENV=1
-  export PATH="$HOME/.npm-global/bin:$PATH"
+  export PATH="$HOME/.npm-global/bin:$PATH"   # skipped if ~/.profile already adds ~/.npm-global/bin
   export PATH="$HOME/go/bin:$PATH"       # skipped if ~/.profile already adds ~/go/bin
-  export PATH="$HOME/.cargo/bin:$PATH"   # skipped if ~/.profile already sources ~/.cargo/env
+  export PATH="$HOME/.cargo/bin:$PATH"   # skipped if ~/.profile already adds ~/.cargo/bin or sources ~/.cargo/env
   export PATH="$HOME/.local/bin:$PATH"   # skipped if ~/.profile already adds ~/.local/bin (Ubuntu's default does)
   ```
 
@@ -47,7 +47,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 - Adds you to the `docker` group so you can run docker without `sudo`.
 - Tells you at the end whether a reboot is needed.
 
-The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add or remove, removes the `~/.local/bin` line from `~/.profile` that older versions added when Ubuntu's default already covers it, moves the settings that the earliest versions put in `~/.bashrc` to `~/.profile` (removing the old `~/.bashrc` lines, unless login shells skip `~/.profile`), and updates DuckDB to the latest release (removing the old copy in `~/bin` that earlier versions installed).
+The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add or remove, removes the `~/.local/bin` line from `~/.profile` that older versions added when Ubuntu's default already covers it, moves the settings that the earliest versions put in `~/.bashrc` to `~/.profile` (removing the old `~/.bashrc` lines, unless login shells skip `~/.profile`, `~/.profile` can't be written, or `~/.bashrc` is the same file as `~/.profile`), and updates DuckDB to the latest release (removing the old copy in `~/bin` that earlier versions installed).
 
 ## Notes
 
@@ -57,7 +57,7 @@ The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings 
 
 ## Requirements
 
-Ubuntu 26.04 or later (amd64 or arm64).
+Ubuntu 26.04 or later (amd64 or arm64). The script checks this and stops before changing anything on other systems.
 
 ## License
 
