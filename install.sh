@@ -4,7 +4,8 @@ set -euo pipefail
 
 # Run apt-get without prompts, keeping existing config files on upgrade and
 # waiting for the dpkg lock (unattended-upgrades often holds it after boot).
-# Input comes from /dev/null so nothing can read the script when piped to bash.
+# Input comes from /dev/null so apt and the package scripts it runs can never
+# stop to wait for input.
 apt_get() {
     sudo env DEBIAN_FRONTEND=noninteractive apt-get -y \
         -o DPkg::Lock::Timeout=600 \
@@ -213,8 +214,10 @@ main() {
         rm -f "$kept"
     }
 
-    # Environment settings go in ~/.profile so login and non-interactive
-    # shells get them too (Ubuntu's .bashrc returns early for those)
+    # Environment settings go in ~/.profile, which the login session reads,
+    # so everything started from it inherits them, including non-interactive
+    # shells (Ubuntu's .bashrc returns early for those).
+    #
     # The patterns that catch a directory already added to PATH match only
     # the value of a PATH assignment, as one of its :-separated entries, not
     # other lines that mention the directory (a GOBIN line, Ubuntu's -d
