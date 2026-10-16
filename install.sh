@@ -57,7 +57,7 @@ main() {
         # Containers
         docker.io docker-buildx docker-compose-v2
 
-        # GitHub
+        # Git and GitHub
         git gh
 
         # General shell tools
@@ -72,10 +72,13 @@ main() {
         # Fonts
         fonts-jetbrains-mono fonts-jetbrains-mono-web fonts-firacode fonts-cascadia-code fonts-hack fonts-inconsolata fonts-ibm-plex fonts-iosevka
 
-        # System
-        openssh-server btop nvtop vim hx vulkan-tools
+        # Editors
+        vim hx
 
-        # Media
+        # System
+        openssh-server btop nvtop vulkan-tools
+
+        # Media and 3D
         ffmpeg mpv imagemagick sox blender
     )
 

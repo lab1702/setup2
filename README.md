@@ -20,13 +20,14 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | Go | golang |
 | Rust | rustup (plus the stable toolchain) |
 | Containers | docker.io, docker-buildx, docker-compose-v2 |
-| GitHub | git, gh |
+| Git and GitHub | git, gh |
 | General shell tools | wget, curl, gpg, unzip, ripgrep, fd-find, fzf, tree, dos2unix, starship, shellcheck |
 | Web dev | nodejs, npm |
 | Data | sqlite3, sqlite3-tools, jq, DuckDB CLI (latest release, in `~/.local/bin`) |
 | Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web, fonts-firacode, fonts-cascadia-code, fonts-hack, fonts-inconsolata, fonts-ibm-plex, fonts-iosevka |
-| System | openssh-server, btop, nvtop, vim, hx (Helix editor), vulkan-tools |
-| Media | ffmpeg, mpv, imagemagick, sox, blender |
+| Editors | vim, hx (Helix editor) |
+| System | openssh-server, btop, nvtop, vulkan-tools |
+| Media and 3D | ffmpeg, mpv, imagemagick, sox, blender |
 
 ## What else it does
 
