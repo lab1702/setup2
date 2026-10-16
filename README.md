@@ -14,7 +14,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 
 | Section | Packages |
 | --- | --- |
-| Build tools and C/C++/Fortran | build-essential, gcc, g++, gfortran, cmake |
+| Build tools and C/C++/Fortran | build-essential, gcc, g++, gfortran, cmake, pkg-config |
 | Python | python3, python3-pip, python3-venv, python3-dev |
 | R | r-base, r-base-dev, r-cran-tidyverse |
 | Go | golang |
@@ -24,8 +24,9 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | General shell tools | wget, curl, gpg, unzip, ripgrep, fd-find, fzf, tree, dos2unix, starship, shellcheck |
 | Web dev | nodejs, npm |
 | Data | sqlite3, sqlite3-tools, jq, DuckDB CLI (latest release, in `~/.local/bin`) |
-| Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web |
-| System | openssh-server, btop, nvtop, vim, hx (Helix editor) |
+| Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web, fonts-firacode, fonts-cascadia-code, fonts-hack, fonts-inconsolata, fonts-ibm-plex, fonts-iosevka |
+| System | openssh-server, btop, nvtop, vim, hx (Helix editor), vulkan-tools |
+| Media | ffmpeg, mpv, imagemagick, sox, blender |
 
 ## What else it does
 
