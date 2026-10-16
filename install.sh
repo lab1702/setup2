@@ -70,7 +70,7 @@ main() {
         sqlite3 sqlite3-tools jq
 
         # Fonts
-        fonts-jetbrains-mono fonts-jetbrains-mono-web
+        fonts-jetbrains-mono fonts-jetbrains-mono-web fonts-firacode fonts-cascadia-code fonts-hack fonts-inconsolata fonts-ibm-plex fonts-iosevka
 
         # System
         openssh-server btop nvtop vim hx vulkan-tools
