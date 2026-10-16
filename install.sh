@@ -76,7 +76,7 @@ main() {
         openssh-server btop nvtop vim hx vulkan-tools
 
         # Media
-        ffmpeg imagemagick sox blender
+        ffmpeg mpv imagemagick sox blender
     )
 
     apt_get update
