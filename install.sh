@@ -40,7 +40,7 @@ main() {
 
     local PACKAGES=(
         # Build tools and C/C++/Fortran
-        build-essential gcc g++ gfortran cmake
+        build-essential gcc g++ gfortran cmake pkg-config
 
         # Python
         python3 python3-pip python3-venv python3-dev
@@ -74,6 +74,9 @@ main() {
 
         # System
         openssh-server btop nvtop vim hx vulkan-tools
+
+        # Media
+        ffmpeg imagemagick sox blender
     )
 
     apt_get update
