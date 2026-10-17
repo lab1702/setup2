@@ -39,7 +39,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
   ```bash
   export PIP_REQUIRE_VIRTUALENV=1
   export PATH="$HOME/.npm-global/bin:$PATH"   # skipped if ~/.profile already adds ~/.npm-global/bin
-  export PATH="$HOME/go/bin:$PATH"       # skipped if ~/.profile already adds ~/go/bin
+  export PATH="$HOME/go/bin:$PATH"       # skipped if ~/.profile already adds ~/go/bin or $GOPATH/bin
   export PATH="$HOME/.cargo/bin:$PATH"   # skipped if ~/.profile already adds ~/.cargo/bin or sources ~/.cargo/env
   export PATH="$HOME/.local/bin:$PATH"   # skipped if ~/.profile already adds ~/.local/bin (Ubuntu's default does)
   ```

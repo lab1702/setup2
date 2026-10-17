@@ -162,7 +162,10 @@ main() {
     local NPM_LINE='export PATH="$HOME/.npm-global/bin:$PATH"'
     local NPM_PATTERN="${ASSIGNS_PATH}${IN_HOME}\.npm-global/bin${DIR_END}"
     local GO_LINE='export PATH="$HOME/go/bin:$PATH"'
-    local GO_PATTERN="${ASSIGNS_PATH}(${IN_HOME}go/bin${DIR_END}|go env GOPATH)"
+    # $GOPATH/bin counts too: GOPATH defaults to ~/go, and setting it
+    # explicitly and then adding $GOPATH/bin is the common idiom
+    local GOPATH_BIN='(\$GOPATH|\$\{GOPATH\})"?/bin'
+    local GO_PATTERN="${ASSIGNS_PATH}((${IN_HOME}go/bin|${GOPATH_BIN})${DIR_END}|go env GOPATH)"
     # Sourcing ~/.cargo/env, as rustup's own installer does, also adds it
     local CARGO_LINE='export PATH="$HOME/.cargo/bin:$PATH"'
     local CARGO_PATTERN="${ASSIGNS_PATH}${IN_HOME}\.cargo/bin${DIR_END}|(^|[[:space:];])(\.|source)[[:space:]]+[^[:space:];&|]*\.cargo/env[\"']?([[:space:];&|)}]|$)"
