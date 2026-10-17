@@ -17,23 +17,23 @@ apt_get() {
 # Everything runs inside main so bash reads the whole script before running
 # any of it (safe for wget | bash, even if the download is cut off).
 main() {
-    # Per-user setup (rustup, npm, shell config, DuckDB, docker group) must
+    # Per-user setup (rustup, npm, shell config, docker group) must
     # target the real user, not root.
     if [[ $EUID -eq 0 ]]; then
         echo "Run this script as your normal user, not as root or with sudo." >&2
         exit 1
     fi
 
-    # Stop before changing anything on a system the package list (and the
-    # DuckDB download) wasn't written for
+    # Stop before changing anything on a system the package list wasn't
+    # written for
     local OS ARCH
     # shellcheck source=/dev/null disable=SC2154
     OS="$( (. /etc/os-release && echo "$ID $VERSION_ID") 2> /dev/null || true)"
     ARCH="$(dpkg --print-architecture 2> /dev/null || true)"
     if [[ "$OS" != "ubuntu "* ]] ||
-        ! dpkg --compare-versions "${OS#ubuntu }" ge 26.04 2> /dev/null ||
+        ! dpkg --compare-versions "${OS#ubuntu }" ge 26.10 2> /dev/null ||
         [[ "$ARCH" != amd64 && "$ARCH" != arm64 ]]; then
-        echo "This script needs Ubuntu 26.04 or later on amd64 or arm64" \
+        echo "This script needs Ubuntu 26.10 or later on amd64 or arm64" \
             "(found: ${OS:-unknown OS} on ${ARCH:-unknown architecture})." >&2
         exit 1
     fi
@@ -67,7 +67,7 @@ main() {
         nodejs npm
 
         # Data
-        sqlite3 sqlite3-tools jq
+        sqlite3 sqlite3-tools jq duckdb
 
         # Fonts
         fonts-jetbrains-mono fonts-jetbrains-mono-web fonts-firacode fonts-cascadia-code fonts-hack fonts-inconsolata fonts-ibm-plex fonts-iosevka
@@ -200,26 +200,6 @@ main() {
     # Interactive prompt setup goes in ~/.bashrc
     add_line "$HOME/.bashrc" 'eval "$(starship init bash)"' \
         'starship init bash'
-
-    # Install the latest DuckDB CLI release into ~/.local/bin. Download into
-    # a temp directory that's deleted on exit, even when interrupted.
-    # Global, not local: the EXIT trap runs after main returns. Clear it
-    # first so the trap never removes a DUCKDB_TMP inherited from the
-    # environment, and set the trap before mktemp to narrow the window in
-    # which an interrupt can leave the directory behind.
-    DUCKDB_TMP=''
-    trap 'rm -rf "$DUCKDB_TMP"' EXIT
-    DUCKDB_TMP="$(mktemp -d)"
-    # Give up on (and retry) a download that stalls below 1 KB/s for a minute
-    curl -fsSL --retry 3 --retry-all-errors --connect-timeout 30 \
-        --speed-limit 1024 --speed-time 60 -o "$DUCKDB_TMP/duckdb.gz" \
-        "https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${ARCH}.gz"
-    gunzip "$DUCKDB_TMP/duckdb.gz"
-    install -m 755 "$DUCKDB_TMP/duckdb" "$HOME/.local/bin/duckdb"
-    # Run it on its own line so set -e stops the script if it doesn't work
-    local DUCKDB_VERSION
-    DUCKDB_VERSION="$("$HOME/.local/bin/duckdb" --version)"
-    echo "Installed $DUCKDB_VERSION to $HOME/.local/bin/duckdb"
 
     echo "Done."
 

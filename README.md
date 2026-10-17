@@ -23,7 +23,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | Git and GitHub | git, gh |
 | General shell tools | wget, curl, gpg, unzip, ripgrep, fd-find, fzf, tree, dos2unix, starship, shellcheck |
 | Web dev | nodejs, npm |
-| Data | sqlite3, sqlite3-tools, jq, DuckDB CLI (latest release, in `~/.local/bin`) |
+| Data | sqlite3, sqlite3-tools, jq, duckdb |
 | Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web, fonts-firacode, fonts-cascadia-code, fonts-hack, fonts-inconsolata, fonts-ibm-plex, fonts-iosevka |
 | Editors | vim, hx (Helix editor) |
 | System | openssh-server, btop, nvtop, vulkan-tools |
@@ -50,7 +50,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 - Adds you to the `docker` group so you can run docker without `sudo`.
 - Tells you at the end whether a reboot is needed.
 
-The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add, and updates the stable Rust toolchain and DuckDB to their latest releases.
+The script is safe to run again: it skips `~/.profile` and `~/.bashrc` settings that already exist, leaves those files untouched when there is nothing to add, and updates the stable Rust toolchain to its latest release.
 
 If `~/.profile` or `~/.bashrc` can't be read or written, the script leaves it as it is and prints a warning instead of stopping.
 
@@ -63,7 +63,7 @@ If `~/.profile` or `~/.bashrc` can't be read or written, the script leaves it as
 
 ## Requirements
 
-Ubuntu 26.04 or later (amd64 or arm64). The script checks this and stops before changing anything on other systems.
+Ubuntu 26.10 or later (amd64 or arm64). The script checks this and stops before changing anything on other systems.
 
 ## License
 
