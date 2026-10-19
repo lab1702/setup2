@@ -23,7 +23,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | Git and GitHub | git, gh |
 | General shell tools | wget, curl, gpg, unzip, ripgrep, fd-find, fzf, tree, dos2unix, starship, shellcheck |
 | Web dev | nodejs, npm |
-| Data | sqlite3, sqlite3-tools, jq, duckdb |
+| Data | sqlite3, sqlite3-tools, jq, yq, duckdb |
 | Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web, fonts-firacode, fonts-cascadia-code, fonts-hack, fonts-inconsolata, fonts-ibm-plex, fonts-iosevka |
 | Editors | vim, hx (Helix editor) |
 | System | openssh-server, btop, nvtop, vulkan-tools |

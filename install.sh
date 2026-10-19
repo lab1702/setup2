@@ -67,7 +67,7 @@ main() {
         nodejs npm
 
         # Data
-        sqlite3 sqlite3-tools jq duckdb
+        sqlite3 sqlite3-tools jq yq duckdb
 
         # Fonts
         fonts-jetbrains-mono fonts-jetbrains-mono-web fonts-firacode fonts-cascadia-code fonts-hack fonts-inconsolata fonts-ibm-plex fonts-iosevka
