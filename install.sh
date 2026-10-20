@@ -79,7 +79,7 @@ main() {
         openssh-server btop nvtop vulkan-tools
 
         # Media and 3D
-        ffmpeg mpv imagemagick sox blender
+        ffmpeg mpv imagemagick sox blender godot
     )
 
     apt_get update

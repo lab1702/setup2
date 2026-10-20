@@ -27,7 +27,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web, fonts-firacode, fonts-cascadia-code, fonts-hack, fonts-inconsolata, fonts-ibm-plex, fonts-iosevka |
 | Editors | vim, hx (Helix editor) |
 | System | openssh-server, btop, nvtop, vulkan-tools |
-| Media and 3D | ffmpeg, mpv, imagemagick, sox, blender |
+| Media and 3D | ffmpeg, mpv, imagemagick, sox, blender, godot |
 
 ## What else it does
 
