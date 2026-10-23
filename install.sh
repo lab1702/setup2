@@ -106,7 +106,9 @@ main() {
     GO_VERSION="$(curl -fsSL 'https://go.dev/VERSION?m=text' 2> /dev/null || true)"
     GO_VERSION="${GO_VERSION%%$'\n'*}"
     if [[ "$GO_VERSION" =~ ^go[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-        if ! go env -w "GOTOOLCHAIN=${GO_VERSION}+auto"; then
+        if go env -w "GOTOOLCHAIN=${GO_VERSION}+auto"; then
+            echo "Set go to use ${GO_VERSION} by default (GOTOOLCHAIN=${GO_VERSION}+auto)."
+        else
             echo "Warning: could not set GOTOOLCHAIN to ${GO_VERSION}+auto." >&2
         fi
     else
