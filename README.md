@@ -24,7 +24,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | General shell tools | wget, curl, gpg, unzip, ripgrep, fd-find, fzf, tree, dos2unix, starship, shellcheck |
 | Web dev | nodejs, npm |
 | Data | sqlite3, sqlite3-tools, jq, yq-go, duckdb (from DuckDB's installer, not apt) |
-| Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web, fonts-firacode, fonts-cascadia-code, fonts-hack, fonts-inconsolata, fonts-ibm-plex, fonts-iosevka |
+| Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web, fonts-firacode, fonts-cascadia-code |
 | Editors | vim, hx (Helix editor) |
 | System | openssh-server, btop, nvtop, vulkan-tools |
 | Media and 3D | ffmpeg, mpv, imagemagick, sox, blender, godot |
