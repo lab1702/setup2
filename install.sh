@@ -98,6 +98,21 @@ main() {
     rustup default stable
     rustup update
 
+    # Make go use the latest Go release by default instead of Ubuntu's
+    # (it downloads that toolchain on first use), or a newer one if a
+    # go.mod asks for it. The first line of the response is the version,
+    # like go1.27.3; read it all before trimming so nothing gets SIGPIPE.
+    local GO_VERSION
+    GO_VERSION="$(curl -fsSL 'https://go.dev/VERSION?m=text' 2> /dev/null || true)"
+    GO_VERSION="${GO_VERSION%%$'\n'*}"
+    if [[ "$GO_VERSION" =~ ^go[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+        if ! go env -w "GOTOOLCHAIN=${GO_VERSION}+auto"; then
+            echo "Warning: could not set GOTOOLCHAIN to ${GO_VERSION}+auto." >&2
+        fi
+    else
+        echo "Warning: could not find the latest Go release, so go stays on Ubuntu's version." >&2
+    fi
+
     # Install global npm packages under the user's home instead of system dirs
     if ! npm config set prefix "$HOME/.npm-global"; then
         echo "Warning: could not set the npm prefix to ~/.npm-global." >&2

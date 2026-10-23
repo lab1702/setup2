@@ -33,6 +33,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 
 - Runs `apt-get update` and `apt-get full-upgrade` before installing. apt runs without prompts and keeps your existing config files when an upgrade ships new versions of them.
 - The upgrade and install wait up to 10 minutes for the package lock if something else (like unattended-upgrades) holds it. `apt-get update` doesn't wait: if another update is running (common right after boot), the script stops, and you can run it again.
+- Looks up the latest Go release at `https://go.dev/VERSION?m=text` and runs `go env -w GOTOOLCHAIN=go1.X.Y+auto` with it, on every run, so `go` downloads and uses that release by default (or a newer one if a `go.mod` asks for it). If the lookup fails, the script prints a warning and leaves Go on Ubuntu's version.
 - Sets the npm global prefix to `~/.npm-global`, on every run, replacing any other prefix in `~/.npmrc`.
 - Adds these lines to `~/.profile` unless that setting is already there (commented-out lines don't count, and `PIP_REQUIRE_VIRTUALENV` set to any value counts and is kept):
 
