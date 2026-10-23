@@ -23,7 +23,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
 | Git and GitHub | git, gh |
 | General shell tools | wget, curl, gpg, unzip, ripgrep, fd-find, fzf, tree, dos2unix, starship, shellcheck |
 | Web dev | nodejs, npm |
-| Data | sqlite3, sqlite3-tools, jq, yq-go |
+| Data | sqlite3, sqlite3-tools, jq, yq-go, duckdb (from DuckDB's installer, not apt) |
 | Fonts | fonts-jetbrains-mono, fonts-jetbrains-mono-web, fonts-firacode, fonts-cascadia-code, fonts-hack, fonts-inconsolata, fonts-ibm-plex, fonts-iosevka |
 | Editors | vim, hx (Helix editor) |
 | System | openssh-server, btop, nvtop, vulkan-tools |
@@ -45,6 +45,7 @@ wget -qO- https://raw.githubusercontent.com/lab1702/setup2/main/install.sh | bas
   ```
 
 - Creates `~/.local/bin` so Ubuntu's default `~/.profile` puts it on your PATH.
+- Installs the latest DuckDB CLI with DuckDB's own installer (`curl https://install.duckdb.org | sh`), which puts it in `~/.duckdb/cli` and links `~/.local/bin/duckdb` to it. If that fails, the script prints a warning and carries on.
 - Adds `eval "$(starship init bash)"` to `~/.bashrc` to turn on the starship prompt, unless `~/.bashrc` already initializes starship.
 - Warns you if a `~/.bash_profile` or `~/.bash_login` would stop login shells from reading `~/.profile`, either because it doesn't source `~/.profile` or because it can't be read.
 - Adds you to the `docker` group so you can run docker without `sudo`.

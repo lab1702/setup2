@@ -180,6 +180,13 @@ main() {
     add_line "$HOME/.profile" 'export PATH="$HOME/.local/bin:$PATH"' \
         "${ASSIGNS_PATH}${IN_HOME}\.local/bin${DIR_END}"
 
+    # Install the latest DuckDB CLI with its official installer, which puts it
+    # under ~/.duckdb and links it from ~/.local/bin (created above). Run the
+    # installer with sh -e as its shebang asks, since piping it ignores that line
+    if ! curl -fsSL https://install.duckdb.org | sh -e; then
+        echo "Warning: could not install DuckDB." >&2
+    fi
+
     # bash login shells read only the first of these that exists, so if it
     # doesn't source ~/.profile (or link to it), the settings above never
     # reach them. Only a line that sources it counts, not any mention of it.
